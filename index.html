@@ -3,30 +3,152 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PitiTorrent - Compartir Archivos P2P</title>
+  <title>PitiTorrent - Compartir Archivos y Carpetas P2P</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/webtorrent/1.9.7/webtorrent.min.js" onerror="window.falloCargaWebTorrent = true;"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     body { font-family: system-ui, -apple-system, sans-serif; background-color: #121212; color: #fff; margin: 0; padding: 30px 20px; }
-    header { text-align: center; margin-bottom: 30px; position: relative; max-width: 1100px; margin-left: auto; margin-right: auto; }
+    header { text-align: center; margin-bottom: 24px; position: relative; max-width: 1100px; margin-left: auto; margin-right: auto; }
     .btn-admin { position: absolute; top: 0; right: 0; background: #222; color: #aaa; border: 1px solid #333; padding: 8px 12px; border-radius: 8px; cursor: pointer; font-size: 0.85rem; }
     .btn-admin:hover { background: #2c2c2c; color: #fff; }
     .btn-admin.activo { background: #18241e; color: #00e676; border-color: #00e67666; }
+
+    /* Navegación por pestañas */
+    .tabs-nav {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      max-width: 500px;
+      margin: 0 auto 30px auto;
+      background: #1a1a1a;
+      padding: 6px;
+      border-radius: 12px;
+      border: 1px solid #2c2c2c;
+    }
+    .tab-btn {
+      flex: 1;
+      background: transparent;
+      color: #aaa;
+      border: none;
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .tab-btn:hover {
+      color: #fff;
+      background: #252525;
+    }
+    .tab-btn.activa {
+      background: #00e676;
+      color: #121212;
+      box-shadow: 0 2px 10px rgba(0, 230, 118, 0.25);
+    }
+
+    /* Secciones separadas */
+    .vista-seccion {
+      display: none;
+    }
+    .vista-seccion.activa {
+      display: block;
+    }
+
     .banner-diagnostico { max-width: 650px; margin: 0 auto 25px auto; background: #2c1518; border: 1px solid #ff5252; border-left: 5px solid #ff5252; padding: 16px 20px; border-radius: 8px; display: none; }
     .banner-diagnostico h4 { margin: 0 0 8px 0; color: #ff8a80; font-size: 1.05rem; }
     .banner-diagnostico p { margin: 0 0 8px 0; font-size: 0.9rem; color: #ffcdd2; line-height: 1.4; }
     .banner-diagnostico ul { margin: 8px 0 0 0; padding-left: 20px; font-size: 0.85rem; color: #ffebee; }
-    .formulario-caja { background: #1e1e1e; max-width: 500px; margin: 0 auto 30px auto; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.4); }
+    
+    .formulario-caja { background: #1e1e1e; max-width: 520px; margin: 0 auto 30px auto; padding: 24px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.4); }
     .formulario-caja h3 { margin-top: 0; }
-    input[type="text"], input[type="url"], input[type="file"] { width: 100%; padding: 10px; margin-bottom: 12px; border-radius: 6px; border: 1px solid #333; background: #2a2a2a; color: #fff; box-sizing: border-box; }
+    input[type="text"], input[type="url"] { width: 100%; padding: 10px; margin-bottom: 12px; border-radius: 6px; border: 1px solid #333; background: #2a2a2a; color: #fff; box-sizing: border-box; }
+    
+    /* Zona de selección de archivos y carpetas */
+    .zona-drop {
+      border: 2px dashed #444;
+      background: #252525;
+      border-radius: 10px;
+      padding: 18px;
+      text-align: center;
+      margin-bottom: 14px;
+      transition: all 0.2s ease;
+    }
+    .zona-drop.dragover {
+      border-color: #00e676;
+      background: #18241e;
+    }
+    .botones-seleccion {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      margin-bottom: 10px;
+    }
+    .btn-secundario {
+      background: #333;
+      color: #fff;
+      border: 1px solid #444;
+      padding: 8px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 600;
+      flex: 1;
+    }
+    .btn-secundario:hover {
+      background: #3e3e3e;
+      border-color: #00e676;
+    }
+    .info-seleccion {
+      font-size: 0.85rem;
+      color: #aaa;
+      margin: 0;
+      word-break: break-word;
+    }
+    .info-seleccion.cargado {
+      color: #00e676;
+      font-weight: 500;
+    }
+
     .aviso-seed { background: #262216; border-left: 4px solid #ffb300; padding: 10px 14px; font-size: 0.85rem; color: #ffe082; margin-bottom: 15px; border-radius: 4px; }
     .btn { background: #00e676; color: #121212; border: none; border-radius: 8px; padding: 12px; font-weight: bold; cursor: pointer; width: 100%; font-size: 0.95rem; }
     .btn:hover:not(:disabled) { background: #00c853; }
     .btn:disabled { background: #333; color: #888; cursor: not-allowed; }
     .btn-borrar { background: #ff5252; color: #fff; border: none; border-radius: 8px; padding: 9px; font-weight: bold; cursor: pointer; width: 100%; font-size: 0.85rem; margin-top: 8px; }
     .btn-borrar:hover { background: #ff1744; }
-    .panel-semillas { max-width: 1100px; margin: 0 auto 30px auto; background: #18241e; border: 1px solid #00e67644; padding: 15px 20px; border-radius: 10px; display: none; }
+    
+    .panel-semillas { max-width: 1100px; margin: 0 auto 25px auto; background: #18241e; border: 1px solid #00e67644; padding: 15px 20px; border-radius: 10px; display: none; }
     .panel-semillas h4 { margin: 0 0 8px 0; color: #00e676; }
+    
+    .cabecera-catalogo {
+      max-width: 1100px;
+      margin: 0 auto 18px auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #262626;
+      padding-bottom: 10px;
+    }
+    .cabecera-catalogo h2 {
+      margin: 0;
+      font-size: 1.25rem;
+      color: #eee;
+    }
+    .btn-refrescar {
+      background: #222;
+      color: #ccc;
+      border: 1px solid #333;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.85rem;
+    }
+    .btn-refrescar:hover {
+      background: #2c2c2c;
+      color: #fff;
+    }
+
     .grid-archivos { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; max-width: 1100px; margin: 0 auto; }
     .tarjeta { background: #1e1e1e; border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 8px 20px rgba(0,0,0,0.4); }
     .tarjeta img { width: 100%; height: 170px; object-fit: cover; background: #2a2a2a; }
@@ -37,6 +159,7 @@
     .barra-fondo { background: #333; border-radius: 6px; height: 12px; overflow: hidden; margin-bottom: 8px; }
     .barra-progreso { background: #00e676; height: 100%; width: 0%; transition: width 0.3s; }
     .detalles { font-size: 0.8rem; color: #a0a0a0; text-align: center; }
+    
     @media (max-width: 650px) {
       .btn-admin { position: static; margin-bottom: 15px; display: inline-block; }
     }
@@ -47,8 +170,14 @@
   <header>
     <button type="button" class="btn-admin" id="btn-admin">🔒 Admin</button>
     <h1>PitiTorrent P2P</h1>
-    <p>Sube cualquier archivo de tu dispositivo para convertirlo en torrent y compartirlo al instante</p>
+    <p>Intercambio directo de archivos y carpetas entre navegadores</p>
   </header>
+
+  <!-- Selector de apartado -->
+  <nav class="tabs-nav">
+    <button type="button" class="tab-btn activa" id="tab-descargar">📥 Descargar (Catálogo)</button>
+    <button type="button" class="tab-btn" id="tab-subir">📤 Subir Archivo / Carpeta</button>
+  </nav>
 
   <section class="banner-diagnostico" id="banner-error">
     <h4>Bloqueo detectado en tu navegador</h4>
@@ -56,26 +185,47 @@
     <ul id="detalles-diagnostico"></ul>
   </section>
 
-  <section class="formulario-caja">
-    <h3>Compartir nuevo archivo</h3>
-    <div class="aviso-seed">
-      <strong>Importante:</strong> Mantén esta pestaña abierta mientras otros descargan tu archivo, ya que se envía directamente desde tu dispositivo.
-    </div>
-    <form id="form-subir">
-      <input type="file" id="archivo-local" required>
-      <input type="text" id="titulo" placeholder="Título del archivo" required>
-      <input type="text" id="descripcion" placeholder="Breve descripción">
-      <input type="url" id="imagen" placeholder="URL de imagen de portada (opcional)">
-      <button type="submit" class="btn" id="btn-publicar">Crear Torrent y Publicar</button>
-    </form>
-  </section>
-
+  <!-- Panel global de semillas activas (visible en ambos apartados si estás compartiendo algo) -->
   <section class="panel-semillas" id="panel-semillas">
-    <h4>Compartiendo actualmente desde tu navegador (No cierres esta pestaña):</h4>
+    <h4>🟢 Compartiendo actualmente desde tu navegador (No cierres esta pestaña):</h4>
     <div id="lista-semillas" style="font-size: 0.9rem; color: #ccc;"></div>
   </section>
 
-  <main class="grid-archivos" id="catalogo">Cargando catálogo...</main>
+  <!-- APARTADO 1: DESCARGAR / CATÁLOGO -->
+  <section id="vista-descargar" class="vista-seccion activa">
+    <div class="cabecera-catalogo">
+      <h2>Archivos y carpetas disponibles</h2>
+      <button type="button" class="btn-refrescar" id="btn-refrescar">🔄 Actualizar</button>
+    </div>
+    <main class="grid-archivos" id="catalogo">Cargando catálogo...</main>
+  </section>
+
+  <!-- APARTADO 2: SUBIR / COMPARTIR -->
+  <section id="vista-subir" class="vista-seccion">
+    <div class="formulario-caja">
+      <h3>Compartir nuevo archivo o carpeta</h3>
+      <div class="aviso-seed">
+        <strong>Importante:</strong> Mantén esta pestaña abierta mientras otros descargan tu contenido, ya que se envía directamente desde tu dispositivo.
+      </div>
+      <form id="form-subir">
+        <input type="file" id="input-archivos" multiple style="display: none;">
+        <input type="file" id="input-carpeta" webkitdirectory directory multiple style="display: none;">
+
+        <div class="zona-drop" id="zona-drop">
+          <div class="botones-seleccion">
+            <button type="button" class="btn-secundario" id="btn-elegir-archivos">📄 Elegir Archivo(s)</button>
+            <button type="button" class="btn-secundario" id="btn-elegir-carpeta">📁 Elegir Carpeta</button>
+          </div>
+          <p class="info-seleccion" id="info-seleccion">O arrastra y suelta aquí tus archivos o carpetas</p>
+        </div>
+
+        <input type="text" id="titulo" placeholder="Título del archivo o carpeta" required>
+        <input type="text" id="descripcion" placeholder="Breve descripción">
+        <input type="url" id="imagen" placeholder="URL de imagen de portada (opcional)">
+        <button type="submit" class="btn" id="btn-publicar">Crear Torrent y Publicar</button>
+      </form>
+    </div>
+  </section>
 
   <script>
     // CAMBIA AQUÍ TU CONTRASEÑA MAESTRA:
@@ -85,6 +235,31 @@
     const SUPABASE_KEY = 'sb_publishable_WzkcsriEcH71Ym0QMHt0gA_Utm_oKgu';
     const catalogoEl = document.getElementById('catalogo');
 
+    // --- NAVEGACIÓN ENTRE APARTADOS ---
+    const tabDescargar = document.getElementById('tab-descargar');
+    const tabSubir = document.getElementById('tab-subir');
+    const vistaDescargar = document.getElementById('vista-descargar');
+    const vistaSubir = document.getElementById('vista-subir');
+
+    function cambiarPestana(pestana) {
+      if (pestana === 'descargar') {
+        tabDescargar.classList.add('activa');
+        tabSubir.classList.remove('activa');
+        vistaDescargar.classList.add('activa');
+        vistaSubir.classList.remove('activa');
+      } else {
+        tabSubir.classList.add('activa');
+        tabDescargar.classList.remove('activa');
+        vistaSubir.classList.add('activa');
+        vistaDescargar.classList.remove('activa');
+      }
+    }
+
+    tabDescargar.addEventListener('click', () => cambiarPestana('descargar'));
+    tabSubir.addEventListener('click', () => cambiarPestana('subir'));
+    document.getElementById('btn-refrescar').addEventListener('click', () => cargarCatalogo());
+
+    // --- CONEXIÓN SUPABASE Y ADMIN ---
     let db = null;
     if (typeof supabase !== 'undefined') {
       db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -146,6 +321,7 @@
       cargarCatalogo();
     }
 
+    // --- DIAGNÓSTICO E INICIALIZACIÓN WEBTORRENT ---
     let client = null;
     let causaBloqueo = '';
 
@@ -198,19 +374,128 @@
       'wss://tracker.files.fm:7073/announce'
     ];
 
-    function guardarArchivosDeTorrent(torrent) {
-      torrent.files.forEach(function(file) {
-        file.getBlobURL(function(err, url) {
-          if (err) return alert('Error al generar descarga: ' + err.message);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = file.name;
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-        });
-      });
+    // --- GESTIÓN DE ARCHIVOS Y CARPETAS (APARTADO SUBIR) ---
+    let archivosSeleccionados = [];
+    const inputArchivos = document.getElementById('input-archivos');
+    const inputCarpeta = document.getElementById('input-carpeta');
+    const infoSeleccion = document.getElementById('info-seleccion');
+    const zonaDrop = document.getElementById('zona-drop');
+    const inputTitulo = document.getElementById('titulo');
+
+    document.getElementById('btn-elegir-archivos').addEventListener('click', () => inputArchivos.click());
+    document.getElementById('btn-elegir-carpeta').addEventListener('click', () => inputCarpeta.click());
+
+    function formatearTamano(bytes) {
+      if (bytes === 0) return '0 B';
+      const k = 1024;
+      const tamaños = ['B', 'KB', 'MB', 'GB', 'TB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + tamaños[i];
     }
+
+    function establecerSeleccion(listaArchivos, nombreSugerido) {
+      archivosSeleccionados = Array.from(listaArchivos);
+      if (archivosSeleccionados.length === 0) return;
+
+      const totalBytes = archivosSeleccionados.reduce((acc, f) => acc + f.size, 0);
+      infoSeleccion.classList.add('cargado');
+
+      if (archivosSeleccionados.length === 1 && !archivosSeleccionados[0].webkitRelativePath) {
+        infoSeleccion.textContent = `📄 ${archivosSeleccionados[0].name} (${formatearTamano(totalBytes)})`;
+        if (!inputTitulo.value) {
+          inputTitulo.value = archivosSeleccionados[0].name;
+        }
+      } else {
+        const rutaEjemplo = archivosSeleccionados[0].webkitRelativePath || archivosSeleccionados[0].fullPath || '';
+        const nombreCarpeta = nombreSugerido || (rutaEjemplo.includes('/') ? rutaEjemplo.split('/')[0] : 'Carpeta');
+        infoSeleccion.textContent = `📁 ${nombreCarpeta} — ${archivosSeleccionados.length} archivos (${formatearTamano(totalBytes)})`;
+        if (!inputTitulo.value) {
+          inputTitulo.value = nombreCarpeta;
+        }
+      }
+    }
+
+    inputArchivos.addEventListener('change', (e) => {
+      establecerSeleccion(e.target.files);
+    });
+
+    inputCarpeta.addEventListener('change', (e) => {
+      establecerSeleccion(e.target.files);
+    });
+
+    zonaDrop.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      zonaDrop.classList.add('dragover');
+    });
+
+    zonaDrop.addEventListener('dragleave', () => {
+      zonaDrop.classList.remove('dragover');
+    });
+
+    async function leerEntradaRecursiva(entry, rutaBase = '') {
+      if (entry.isFile) {
+        return new Promise((resolve) => {
+          entry.file((file) => {
+            Object.defineProperty(file, 'webkitRelativePath', {
+              value: rutaBase + file.name
+            });
+            resolve([file]);
+          });
+        });
+      } else if (entry.isDirectory) {
+        const dirReader = entry.createReader();
+        const leerTodos = () => new Promise((resolve) => {
+          let entradas = [];
+          const leerLote = () => {
+            dirReader.readEntries(async (resultados) => {
+              if (!resultados.length) {
+                resolve(entradas);
+              } else {
+                entradas = entradas.concat(resultados);
+                leerLote();
+              }
+            });
+          };
+          leerLote();
+        });
+
+        const entradas = await leerTodos();
+        let archivos = [];
+        for (const subEntry of entradas) {
+          const subArchivos = await leerEntradaRecursiva(subEntry, rutaBase + entry.name + '/');
+          archivos = archivos.concat(subArchivos);
+        }
+        return archivos;
+      }
+      return [];
+    }
+
+    zonaDrop.addEventListener('drop', async (e) => {
+      e.preventDefault();
+      zonaDrop.classList.remove('dragover');
+
+      const items = e.dataTransfer.items;
+      if (!items) return;
+
+      infoSeleccion.textContent = 'Leyendo archivos y subcarpetas...';
+      let todosLosArchivos = [];
+      let nombreCarpetaRaiz = null;
+
+      for (let i = 0; i < items.length; i++) {
+        const entry = items[i].webkitGetAsEntry ? items[i].webkitGetAsEntry() : null;
+        if (entry) {
+          if (entry.isDirectory && items.length === 1) {
+            nombreCarpetaRaiz = entry.name;
+          }
+          const extraidos = await leerEntradaRecursiva(entry);
+          todosLosArchivos = todosLosArchivos.concat(extraidos);
+        }
+      }
+
+      if (todosLosArchivos.length > 0) {
+        establecerSeleccion(todosLosArchivos, nombreCarpetaRaiz);
+      }
+    });
 
     document.getElementById('form-subir').addEventListener('submit', function(e) {
       e.preventDefault();
@@ -224,17 +509,20 @@
         return;
       }
 
-      const inputArchivo = document.getElementById('archivo-local');
-      if (!inputArchivo.files || inputArchivo.files.length === 0) return;
+      if (!archivosSeleccionados || archivosSeleccionados.length === 0) {
+        alert('Por favor, selecciona un archivo o una carpeta primero.');
+        return;
+      }
 
-      const archivo = inputArchivo.files[0];
       const btn = document.getElementById('btn-publicar');
       btn.disabled = true;
       btn.textContent = 'Generando Torrent P2P...';
 
-      client.seed(archivo, { announce: trackers }, async function(torrent) {
+      const nombreTorrent = document.getElementById('titulo').value.trim();
+
+      client.seed(archivosSeleccionados, { name: nombreTorrent, announce: trackers }, async function(torrent) {
         const nuevo = {
-          titulo: document.getElementById('titulo').value,
+          titulo: nombreTorrent,
           descripcion: document.getElementById('descripcion').value,
           imagen: document.getElementById('imagen').value,
           info_hash: torrent.infoHash
@@ -253,13 +541,71 @@
         document.getElementById('panel-semillas').style.display = 'block';
         const item = document.createElement('div');
         item.style.marginBottom = '6px';
-        item.innerHTML = '🟢 <strong>' + nuevo.titulo + '</strong> (Hash: <code>' + torrent.infoHash + '</code>)';
+        const icono = archivosSeleccionados.length > 1 ? '📁' : '📄';
+        item.innerHTML = `${icono} <strong>${nuevo.titulo}</strong> (${archivosSeleccionados.length} archivo/s) — Hash: <code>${torrent.infoHash}</code>`;
         document.getElementById('lista-semillas').appendChild(item);
 
+        // Limpiar formulario y cambiar automáticamente al apartado de descarga para verlo publicado
         e.target.reset();
+        archivosSeleccionados = [];
+        infoSeleccion.classList.remove('cargado');
+        infoSeleccion.textContent = 'O arrastra y suelta aquí tus archivos o carpetas';
+        
         cargarCatalogo();
+        cambiarPestana('descargar');
       });
     });
+
+    // --- CATÁLOGO Y DESCARGA (APARTADO DESCARGAR) ---
+    async function guardarArchivosDeTorrent(torrent, detallesEl) {
+      if (torrent.files.length === 1) {
+        const file = torrent.files[0];
+        file.getBlobURL(function(err, url) {
+          if (err) return alert('Error al generar descarga: ' + err.message);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = file.name;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+        });
+      } else {
+        if (typeof JSZip === 'undefined') {
+          alert('No se pudo cargar JSZip. Se descargarán los archivos uno por uno.');
+          torrent.files.forEach(file => {
+            file.getBlobURL((err, url) => {
+              if (!err) {
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = file.name;
+                a.click();
+              }
+            });
+          });
+          return;
+        }
+
+        if (detallesEl) detallesEl.textContent = 'Empaquetando carpeta en ZIP...';
+        const zip = new JSZip();
+
+        for (const file of torrent.files) {
+          const blob = await new Promise((resolve, reject) => {
+            file.getBlob((err, b) => err ? reject(err) : resolve(b));
+          });
+          zip.file(file.path, blob);
+        }
+
+        const zipBlob = await zip.generateAsync({ type: 'blob' });
+        const url = URL.createObjectURL(zipBlob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = (torrent.name || 'carpeta_pititorrent') + '.zip';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        if (detallesEl) detallesEl.textContent = '100% • Carpeta ZIP guardada';
+      }
+    }
 
     async function cargarCatalogo() {
       if (!db) return;
@@ -277,7 +623,7 @@
 
         const data = res.data;
         if (!data || data.length === 0) {
-          catalogoEl.innerHTML = '<p style="color:#aaa;">Aún no hay archivos publicados. ¡Sé el primero en compartir uno!</p>';
+          catalogoEl.innerHTML = '<p style="color:#aaa;">Aún no hay archivos publicados. Ve a la pestaña <strong>Subir Archivo / Carpeta</strong> para compartir el primero.</p>';
           return;
         }
 
@@ -340,8 +686,8 @@
         if (existente.done || existente.progress === 1) {
           barra.style.width = '100%';
           btn.textContent = '¡Descargado!';
-          detalles.textContent = '100% • Archivo listo en tu navegador';
-          guardarArchivosDeTorrent(existente);
+          detalles.textContent = '100% • Listo en tu navegador';
+          guardarArchivosDeTorrent(existente, detalles);
         } else {
           btn.disabled = true;
           btn.textContent = 'Descargando...';
@@ -371,8 +717,8 @@
           barra.style.width = '100%';
           btn.disabled = false;
           btn.textContent = '¡Descargado! (Guardar de nuevo)';
-          detalles.textContent = '100% • Guardando archivo...';
-          guardarArchivosDeTorrent(torrent);
+          detalles.textContent = '100% • Guardando...';
+          guardarArchivosDeTorrent(torrent, detalles);
         });
       });
     }
