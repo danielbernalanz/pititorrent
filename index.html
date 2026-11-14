@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Descarga Automática WebTorrent</title>
+  <!-- 1. URL completa de la librería WebTorrent -->
   <script src="https://jsdelivr.net"></script>
   <style>
     body {
@@ -71,11 +72,10 @@
     const client = new WebTorrent();
     const infoHash = '851d38402bde0f0b0ed2229a7167e77e1b31eed4';
 
-    // Trackers WebSocket públicos necesarios para encontrar peers en el navegador
+    // 2. Trackers WebSocket corregidos
     const trackers = [
-      'wss://://openwebtorrent.com',
+      'wss://tracker.openwebtorrent.com',
       'wss://tracker.btorrent.xyz',
-      'wss://tracker.fastcast.nz',
       'wss://tracker.webtorrent.dev'
     ];
 
@@ -83,13 +83,11 @@
     const barraEl = document.getElementById('barra');
     const detallesEl = document.getElementById('detalles');
 
-    // Construimos el enlace magnet con el hash proporcionado
     const magnetURI = `magnet:?xt=urn:btih:${infoHash}&tr=${trackers.map(encodeURIComponent).join('&tr=')}`;
 
     client.add(magnetURI, function (torrent) {
       estadoEl.textContent = `Descargando: ${torrent.name}`;
 
-      // Actualizar barra de progreso cada medio segundo
       const intervalo = setInterval(() => {
         const porcentaje = (torrent.progress * 100).toFixed(1);
         const velocidad = (torrent.downloadSpeed / 1024 / 1024).toFixed(2);
@@ -98,14 +96,12 @@
         detallesEl.textContent = `${porcentaje}% | Velocidad: ${velocidad} MB/s | Pares: ${torrent.numPeers}`;
       }, 500);
 
-      // Cuando la descarga finaliza por completo
       torrent.on('done', function () {
         clearInterval(intervalo);
         barraEl.style.width = '100%';
         estadoEl.textContent = '¡Descarga completada! Guardando archivo...';
         detallesEl.textContent = '100% Completado';
 
-        // Recorrer todos los archivos del torrent y forzar su descarga
         torrent.files.forEach(function (file) {
           file.getBlobURL(function (err, url) {
             if (err) {
@@ -113,7 +109,6 @@
               return;
             }
             
-            // Crear un enlace invisible y hacer clic automático para enviarlo a Descargas
             const enlace = document.createElement('a');
             enlace.href = url;
             enlace.download = file.name;
