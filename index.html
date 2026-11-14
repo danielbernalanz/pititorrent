@@ -230,9 +230,13 @@
     .aviso-seed { background: #262216; border-left: 4px solid #ffb300; padding: 10px 14px; font-size: 0.85rem; color: #ffe082; margin-bottom: 15px; border-radius: 4px; line-height: 1.4; }
     .aviso-drive { background: #16222f; border-left: 4px solid #42a5f5; padding: 10px 14px; font-size: 0.84rem; color: #bbdefb; margin-bottom: 15px; border-radius: 4px; line-height: 1.4; }
     
-    .btn { background: #00e676; color: #121212; border: none; border-radius: 8px; padding: 12px; font-weight: bold; cursor: pointer; width: 100%; font-size: 0.95rem; }
+    .btn { background: #00e676; color: #121212; border: none; border-radius: 8px; padding: 12px; font-weight: bold; cursor: pointer; width: 100%; font-size: 0.95rem; margin-bottom: 6px; }
     .btn:hover:not(:disabled) { background: #00c853; }
     .btn:disabled { background: #333; color: #888; cursor: not-allowed; }
+
+    /* Botón de emergencia para forzar extracción de caché */
+    .btn-forzar { background: #ffb300; color: #121212; border: none; border-radius: 8px; padding: 10px; font-weight: bold; cursor: pointer; width: 100%; font-size: 0.85rem; }
+    .btn-forzar:hover { background: #ffa000; }
     
     .btn-drive { background: #4285f4; color: #fff; border: none; border-radius: 8px; padding: 12px; font-weight: bold; cursor: pointer; width: 100%; font-size: 0.95rem; }
     .btn-drive:hover:not(:disabled) { background: #3367d6; }
@@ -308,7 +312,7 @@
     <h1>PitiTorrent P2P</h1>
     <p>Intercambio directo de archivos, carpetas y nube entre navegadores</p>
     <div style="font-size: 0.75rem; color: #777; margin-top: 6px;">
-      Versión: <span style="color: #00e676; font-family: monospace;">v2.4.6</span> • Descarga Directa Segura
+      Versión: <span style="color: #00e676; font-family: monospace;">v2.4.8</span> • Botón de Forzado Caché Activo
     </div>
   </header>
 
@@ -898,7 +902,7 @@
       } catch (err) { logDrive('Error sync: ' + err.message); }
     }
 
-    // --- DESCARGA DIRECTA DE ARCHIVOS (SIN USAR JSZIP) ---
+    // --- DESCARGA DIRECTA DE ARCHIVOS ---
     async function guardarArchivosDeTorrent(torrent, detallesEl) {
       if (detallesEl) detallesEl.textContent = 'Guardando archivos descargados...';
       
@@ -917,13 +921,33 @@
               a.click();
               document.body.removeChild(a);
             }
-            // Pausa breve para que el navegador procese cada descarga individual sin bloquearse
             setTimeout(resolve, 400);
           });
         });
       }
 
       if (detallesEl) detallesEl.textContent = '100% • ¡Todos los archivos guardados con éxito!';
+    }
+
+    // --- FUNCIÓN DE EMERGENCIA: FORZAR EXTRACCIÓN AL 100% ---
+    function forzarDescarga100(infoHash, id) {
+      const detalles = document.getElementById(`detalles-${id}`);
+      const zona = document.getElementById(`prog-zona-${id}`);
+      zona.style.display = 'block';
+      detalles.textContent = 'Forzando extracción desde la red y caché...';
+
+      let torrent = client.get(infoHash);
+      if (torrent) {
+        guardarArchivosDeTorrent(torrent, detalles);
+        return;
+      }
+
+      // Si no está en memoria, lo añade y de inmediato fuerza la descarga
+      const magnet = `magnet:?xt=urn:btih:${infoHash}&tr=` + trackers.map(encodeURIComponent).join('&tr=');
+      client.add(magnet, (torrentForzado) => {
+        detalles.textContent = 'Torrent cargado. Extrayendo archivos...';
+        guardarArchivosDeTorrent(torrentForzado, detalles);
+      });
     }
 
     async function cargarCatalogo() {
@@ -943,6 +967,7 @@
             <h3>${item.titulo}</h3>
             <p>${item.descripcion || 'Sin descripción'}</p>
             <button class="btn" id="btn-${item.id}">Descargar P2P</button>
+            <button class="btn-forzar" id="forzar-${item.id}">⚡ Forzar Guardado (Si ya estaba bajado)</button>
             ${modoAdmin ? `<button type="button" class="btn-borrar" id="del-${item.id}">🗑️ Eliminar</button>` : ''}
             <div class="zona-progreso" id="prog-zona-${item.id}">
               <div class="barra-fondo"><div class="barra-progreso" id="barra-${item.id}"></div></div>
@@ -957,6 +982,7 @@
         catalogoEl.appendChild(tarjeta);
 
         document.getElementById(`btn-${item.id}`).addEventListener('click', () => iniciarDescarga(item.info_hash, item.id, item.titulo));
+        document.getElementById(`forzar-${item.id}`).addEventListener('click', () => forzarDescarga100(item.info_hash, item.id));
         if (modoAdmin) {
           document.getElementById(`del-${item.id}`).addEventListener('click', () => eliminarTorrent(item.id, item.titulo, item.info_hash));
         }
