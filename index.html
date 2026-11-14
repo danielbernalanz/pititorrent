@@ -4,11 +4,15 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PitiTorrent - Compartir Archivos P2P</title>
-  <script src="https://unpkg.com/webtorrent@2.5.1/dist/webtorrent.min.js"></script>
+  <script src="https://unpkg.com/webtorrent@2.5.1/dist/webtorrent.min.js" onerror="window.falloCargaWebTorrent = true;"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     body { font-family: system-ui, -apple-system, sans-serif; background-color: #121212; color: #fff; margin: 0; padding: 30px 20px; }
     header { text-align: center; margin-bottom: 30px; }
+    .banner-diagnostico { max-width: 650px; margin: 0 auto 25px auto; background: #2c1518; border: 1px solid #ff5252; border-left: 5px solid #ff5252; padding: 16px 20px; border-radius: 8px; display: none; }
+    .banner-diagnostico h4 { margin: 0 0 8px 0; color: #ff8a80; font-size: 1.05rem; }
+    .banner-diagnostico p { margin: 0 0 8px 0; font-size: 0.9rem; color: #ffcdd2; line-height: 1.4; }
+    .banner-diagnostico ul { margin: 8px 0 0 0; padding-left: 20px; font-size: 0.85rem; color: #ffebee; }
     .formulario-caja { background: #1e1e1e; max-width: 500px; margin: 0 auto 30px auto; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.4); }
     .formulario-caja h3 { margin-top: 0; }
     input[type="text"], input[type="url"], input[type="file"] { width: 100%; padding: 10px; margin-bottom: 12px; border-radius: 6px; border: 1px solid #333; background: #2a2a2a; color: #fff; box-sizing: border-box; }
@@ -37,6 +41,12 @@
     <p>Sube cualquier archivo de tu dispositivo para convertirlo en torrent y compartirlo al instante</p>
   </header>
 
+  <section class="banner-diagnostico" id="banner-error">
+    <h4>Bloqueo detectado en tu navegador</h4>
+    <p id="mensaje-diagnostico"></p>
+    <ul id="detalles-diagnostico"></ul>
+  </section>
+
   <section class="formulario-caja">
     <h3>Compartir nuevo archivo</h3>
     <div class="aviso-seed">
@@ -64,12 +74,45 @@
     const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     let client = null;
+    let causaBloqueo = '';
+
+    function ejecutarDiagnostico() {
+      const banner = document.getElementById('banner-error');
+      const msg = document.getElementById('mensaje-diagnostico');
+      const lista = document.getElementById('detalles-diagnostico');
+      const problemas = [];
+
+      if (window.falloCargaWebTorrent || typeof WebTorrent === 'undefined') {
+        problemas.push('<strong>Bloqueador de scripts/anuncios detectado (uBlock Origin, AdBlock, Privacy Badger o Escudos de Brave):</strong> Ha impedido cargar el motor <code>webtorrent.min.js</code>.');
+      }
+
+      const rtcDisponible = window.RTCPeerConnection || window.webkitRTCPeerConnection || window.mozRTCPeerConnection;
+      if (!rtcDisponible) {
+        problemas.push('<strong>Extensión anti-fugas WebRTC detectada (WebRTC Control / uBlock WebRTC):</strong> Ha desactivado <code>RTCPeerConnection</code>, necesario para conectar pares P2P.');
+      }
+
+      if (navigator.brave && typeof navigator.brave.isBrave === 'function') {
+        problemas.push('<strong>Navegador Brave detectado:</strong> Los Escudos de Brave bloquean por defecto las conexiones WebTorrent y trackers.');
+      }
+
+      if (problemas.length > 0) {
+        banner.style.display = 'block';
+        msg.innerHTML = 'Tu navegador o una extensión está bloqueando la tecnología P2P. Para usar esta web, desactiva temporalmente el bloqueo en este sitio:';
+        lista.innerHTML = problemas.map(p => `<li>${p}</li>`).join('');
+        causaBloqueo = problemas[0].replace(/<[^>]*>?/gm, '');
+      }
+    }
+
+    ejecutarDiagnostico();
+
     try {
       if (typeof WebTorrent !== 'undefined') {
         client = new WebTorrent();
       }
     } catch (e) {
-      console.error('Error iniciando WebTorrent:', e);
+      causaBloqueo = 'Error al iniciar WebTorrent: ' + e.message;
+      document.getElementById('banner-error').style.display = 'block';
+      document.getElementById('mensaje-diagnostico').textContent = causaBloqueo;
     }
 
     const trackers = [
@@ -82,7 +125,7 @@
     document.getElementById('form-subir').addEventListener('submit', (e) => {
       e.preventDefault();
       if (!client) {
-        alert('Error: No se pudo cargar WebTorrent. Prueba a desactivar el bloqueador de anuncios (Brave/uBlock) para esta web.');
+        alert('No se puede crear el torrent.\n\nMotivo: ' + (causaBloqueo || 'El motor WebTorrent fue bloqueado por una extensión.'));
         return;
       }
 
@@ -166,7 +209,7 @@
 
       box.style.display = 'block';
       if (!client) {
-        det.textContent = 'Error: Librería WebTorrent bloqueada por el navegador.';
+        det.textContent = 'Bloqueado: Desactiva tu bloqueador de anuncios o extensión WebRTC para descargar.';
         return;
       }
 
