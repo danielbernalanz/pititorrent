@@ -55,7 +55,7 @@
     .banner-diagnostico p { margin: 0 0 8px 0; font-size: 0.9rem; color: #ffcdd2; line-height: 1.4; }
     .banner-diagnostico ul { margin: 8px 0 0 0; padding-left: 20px; font-size: 0.85rem; color: #ffebee; }
 
-    /* Banner de reanudación automática/manual */
+    /* Banner de reanudación automática/manual si saliste y volviste siendo servidor */
     .banner-reanudar {
       max-width: 1100px;
       margin: 0 auto 22px auto;
@@ -154,6 +154,7 @@
       vertical-align: middle;
     }
     .badge-origen.drive { background: #1a283b; color: #64b5f6; border: 1px solid #64b5f644; }
+    .badge-origen.local-per { background: #1b2e21; color: #00e676; border: 1px solid #00e67644; }
     .badge-origen.reanudado { background: #292315; color: #ffd54f; border: 1px solid #ffd54f44; }
     .semilla-metricas {
       display: flex;
@@ -209,7 +210,7 @@
       transition: all 0.2s ease;
     }
     .zona-drop.dragover { border-color: #00e676; background: #18241e; }
-    .botones-seleccion { display: flex; gap: 10px; justify-content: center; margin-bottom: 10px; }
+    .botones-seleccion { display: flex; gap: 10px; justify-content: center; margin-bottom: 10px; flex-wrap: wrap; }
     .btn-secundario {
       background: #333;
       color: #fff;
@@ -220,6 +221,7 @@
       font-size: 0.85rem;
       font-weight: 600;
       flex: 1;
+      min-width: 130px;
     }
     .btn-secundario:hover { background: #3e3e3e; border-color: #00e676; }
     .info-seleccion { font-size: 0.85rem; color: #aaa; margin: 0; word-break: break-word; }
@@ -319,7 +321,7 @@
     <ul id="detalles-diagnostico"></ul>
   </section>
 
-  <!-- Banner de reanudación automática/manual -->
+  <!-- Banner de reanudación automática/manual para Google Drive -->
   <section class="banner-reanudar" id="banner-reanudar">
     <p id="texto-banner-reanudar">☁️ Tenías una carpeta de Google Drive actuando como servidor antes de salir.</p>
     <div class="banner-reanudar-acciones">
@@ -353,11 +355,11 @@
   <section id="vista-subir" class="vista-seccion">
     <div class="contenedor-subida">
       
-      <!-- Opción A: Subida Local -->
+      <!-- Opción A: Subida Local con Carpeta Persistente en Disco -->
       <div class="formulario-caja">
-        <h3>💻 Compartir desde este dispositivo</h3>
+        <h3>💻 Servidor de Carpeta Local Permanente</h3>
         <div class="aviso-seed">
-          <strong>Persistencia automática:</strong> Tus archivos se guardan en la memoria del navegador (IndexedDB). Si cierras la pestaña y vuelves más tarde, se reanudarán automáticamente como servidor mostrando cuánta gente hay conectada y la velocidad de subida en tiempo real.
+          <strong>Enlace directo al disco:</strong> Usa <em>"Vincular Carpeta PC"</em>. El navegador guardará un acceso directo permanente a tu disco duro. Aunque limpies la caché o reinicies, podrás reactivar tu servidor con un solo clic sin volver a buscar archivos.
         </div>
         <form id="form-subir">
           <input type="file" id="input-archivos" multiple style="display: none;">
@@ -365,10 +367,11 @@
 
           <div class="zona-drop" id="zona-drop">
             <div class="botones-seleccion">
-              <button type="button" class="btn-secundario" id="btn-elegir-archivos">📄 Elegir Archivo(s)</button>
-              <button type="button" class="btn-secundario" id="btn-elegir-carpeta">📁 Elegir Carpeta</button>
+              <button type="button" class="btn-secundario" id="btn-elegir-archivos">📄 Archivo(s)</button>
+              <button type="button" class="btn-secundario" id="btn-elegir-carpeta">📁 Carpeta</button>
+              <button type="button" class="btn-secundario" id="btn-vincular-disco" style="background: #1b3a2b; border-color: #00e676; color: #00e676;">🔗 Vincular Carpeta PC</button>
             </div>
-            <p class="info-seleccion" id="info-seleccion">O arrastra y suelta aquí tus archivos o carpetas</p>
+            <p class="info-seleccion" id="info-seleccion">O arrastra archivos o vincula tu carpeta local permanente</p>
           </div>
 
           <input type="text" id="titulo" placeholder="Título del archivo o carpeta" required>
@@ -382,13 +385,13 @@
       <div class="formulario-caja">
         <h3>☁️ Conectar Carpeta de Google Drive (Modo Servidor)</h3>
         <div class="aviso-drive">
-          Conecta una carpeta de tu Google Drive para que esta pestaña actúe como <strong>servidor P2P automático</strong>. Si sales y vuelves a entrar, podrás reanudar la conexión con un clic para seguir sirviendo los mismos archivos.
+          Conecta una carpeta de tu Google Drive para que esta pestaña actúe como servidor P2P automático en la nube.
         </div>
         <form id="form-drive">
-          <input type="text" id="drive-client-id" placeholder="Google OAuth Client ID (ej. 123456-abc.apps.googleusercontent.com)" required>
+          <input type="text" id="drive-client-id" placeholder="Google OAuth Client ID" required>
           <input type="text" id="drive-folder-url" placeholder="URL o ID de la carpeta de Google Drive" required>
           <div style="display: flex; gap: 10px;">
-            <button type="submit" class="btn-drive" id="btn-conectar-drive">🔗 Conectar y Sincronizar Carpeta</button>
+            <button type="submit" class="btn-drive" id="btn-conectar-drive">🔗 Conectar Google Drive</button>
             <button type="button" class="btn-secundario" id="btn-sincronizar-ahora" style="display: none; flex: 0 0 auto;">🔄 Re-escanear</button>
           </div>
         </form>
@@ -407,7 +410,6 @@
 
   <script>
     const CLAVE_ADMIN = 'piti1234';
-
     const SUPABASE_URL = 'https://nkcfnbygggrekgnbbjrx.supabase.co';
     const SUPABASE_KEY = 'sb_publishable_WzkcsriEcH71Ym0QMHt0gA_Utm_oKgu';
     const catalogoEl = document.getElementById('catalogo');
@@ -431,17 +433,69 @@
       return (kbps / 1024).toFixed(2) + ' MB/s';
     }
 
-    // --- BASE DE DATOS LOCAL (INDEXEDDB) ---
+    // --- MANEJO DE ACCESO AL DISCO LOCAL (File System Access API) ---
+    let handleCarpetaLocal = null;
+
+    async function leerDirectorioRecursivo(dirHandle, rutaBase = '') {
+      let archivos = [];
+      for await (const entry of dirHandle.values()) {
+        const rutaActual = rutaBase + entry.name;
+        if (entry.kind === 'file') {
+          const file = await entry.getFile();
+          Object.defineProperty(file, 'webkitRelativePath', { value: rutaActual });
+          archivos.push(file);
+        } else if (entry.kind === 'directory') {
+          const subArchivos = await leerDirectorioRecursivo(entry, rutaActual + '/');
+          archivos.push(...subArchivos);
+        }
+      }
+      return archivos;
+    }
+
+    document.getElementById('btn-vincular-disco').addEventListener('click', async () => {
+      if (typeof window.showDirectoryPicker !== 'function') {
+        alert('Tu navegador no soporta el acceso directo al disco local mediante API. Usa los botones de archivo o arrastra y suelta.');
+        return;
+      }
+      try {
+        handleCarpetaLocal = await window.showDirectoryPicker();
+        await guardarHandleEnIDB(handleCarpetaLocal);
+        
+        const infoSeleccion = document.getElementById('info-seleccion');
+        infoSeleccion.classList.add('cargado');
+        infoSeleccion.textContent = `🔗 Carpeta vinculada al PC: ${handleCarpetaLocal.name}`;
+        document.getElementById('titulo').value = handleCarpetaLocal.name;
+
+        let lista = [];
+        for await (const entry of handleCarpetaLocal.values()) {
+          if (entry.kind === 'file') {
+            const f = await entry.getFile();
+            Object.defineProperty(f, 'webkitRelativePath', { value: handleCarpetaLocal.name + '/' + f.name });
+            lista.push(f);
+          } else if (entry.kind === 'directory') {
+            const subs = await leerDirectorioRecursivo(entry, handleCarpetaLocal.name + '/' + entry.name + '/');
+            lista = lista.concat(subs);
+          }
+        }
+        archivosSeleccionados = lista;
+      } catch (err) {
+        console.log('Selección de carpeta cancelada o rechazada:', err);
+      }
+    });
+
     const IDB_NAME = 'PitiTorrentServidorDB';
-    const IDB_STORE = 'semillas_guardadas';
+    const IDB_STORE = 'handles_disco';
 
     function abrirIDB() {
       return new Promise((resolve, reject) => {
-        const req = indexedDB.open(IDB_NAME, 1);
+        const req = indexedDB.open(IDB_NAME, 2);
         req.onupgradeneeded = (e) => {
           const idb = e.target.result;
           if (!idb.objectStoreNames.contains(IDB_STORE)) {
-            idb.createObjectStore(IDB_STORE, { keyPath: 'infoHash' });
+            idb.createObjectStore(IDB_STORE, { keyPath: 'id' });
+          }
+          if (!idb.objectStoreNames.contains('semillas_guardadas')) {
+            idb.createObjectStore('semillas_guardadas', { keyPath: 'infoHash' });
           }
         };
         req.onsuccess = () => resolve(req.result);
@@ -449,43 +503,24 @@
       });
     }
 
-    async function guardarSemillaEnIDB(registro) {
+    async function guardarHandleEnIDB(handle) {
       try {
         const idb = await abrirIDB();
-        return new Promise((resolve, reject) => {
-          const tx = idb.transaction(IDB_STORE, 'readwrite');
-          tx.objectStore(IDB_STORE).put(registro);
-          tx.oncomplete = () => resolve();
-          tx.onerror = () => reject(tx.error);
-        });
-      } catch (err) {
-        console.warn('No se pudo guardar en IndexedDB:', err);
-      }
+        const tx = idb.transaction(IDB_STORE, 'readwrite');
+        tx.objectStore(IDB_STORE).put({ id: 'carpeta_principal', handle: handle });
+      } catch (e) { console.warn(e); }
     }
 
-    async function obtenerSemillasDeIDB() {
-      try {
-        const idb = await abrirIDB();
-        return new Promise((resolve, reject) => {
-          const tx = idb.transaction(IDB_STORE, 'readonly');
-          const req = tx.objectStore(IDB_STORE).getAll();
-          req.onsuccess = () => resolve(req.result || []);
-          req.onerror = () => reject(req.error);
-        });
-      } catch (err) {
-        return [];
-      }
-    }
-
-    async function eliminarSemillaDeIDB(infoHash) {
+    async function recuperarHandleDeIDB() {
       try {
         const idb = await abrirIDB();
         return new Promise((resolve) => {
-          const tx = idb.transaction(IDB_STORE, 'readwrite');
-          tx.objectStore(IDB_STORE).delete(infoHash);
-          tx.oncomplete = () => resolve();
+          const tx = idb.transaction(IDB_STORE, 'readonly');
+          const req = tx.objectStore(IDB_STORE).get('carpeta_principal');
+          req.onsuccess = () => resolve(req.result ? req.result.handle : null);
+          req.onerror = () => resolve(null);
         });
-      } catch (err) {}
+      } catch (e) { return null; }
     }
 
     // --- NAVEGACIÓN ---
@@ -512,7 +547,6 @@
     tabSubir.addEventListener('click', () => cambiarPestana('subir'));
     document.getElementById('btn-refrescar').addEventListener('click', () => cargarCatalogo());
 
-    // --- SUPABASE Y ADMIN ---
     let db = null;
     if (typeof supabase !== 'undefined') {
       db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -554,42 +588,30 @@
     async function eliminarTorrent(id, titulo, infoHash) {
       if (!db || !modoAdmin) return;
       if (!confirm('¿Eliminar "' + titulo + '" del catálogo?')) return;
-
-      const res = await db.from('torrents').delete().eq('id', id);
-      if (res.error) {
-        alert('Error al borrar: ' + res.error.message);
-        return;
-      }
-
+      await db.from('torrents').delete().eq('id', id);
       if (client && infoHash) {
         const activo = client.get(infoHash);
         if (activo) activo.destroy();
         semillasActivas.delete(infoHash);
-        await eliminarSemillaDeIDB(infoHash);
         renderizarPanelSemillas();
       }
       cargarCatalogo();
     }
 
-    // --- WEBTORRENT ---
     let client = null;
-    let causaBloqueo = '';
-
     try {
       if (typeof WebTorrent !== 'undefined') {
         client = new WebTorrent();
       }
-    } catch (e) {
-      causaBloqueo = e.message;
-    }
+    } catch (e) {}
 
+    // Trackers estables y limpios para evitar errores de WebSockets
     const trackers = [
       'wss://tracker.openwebtorrent.com',
       'wss://tracker.webtorrent.dev',
-      'wss://tracker.files.fm:7073/announce'
+      'wss://tracker.btorrent.xyz'
     ];
 
-    // --- PANEL DE SERVIDOR Y MÉTRICAS EN VIVO ---
     const semillasActivas = new Map();
 
     function registrarSemillaEnPanel(torrent, meta) {
@@ -606,40 +628,31 @@
 
     async function detenerSemilla(infoHash) {
       const registro = semillasActivas.get(infoHash);
-      if (registro && registro.torrent) {
-        registro.torrent.destroy();
-      }
+      if (registro && registro.torrent) registro.torrent.destroy();
       semillasActivas.delete(infoHash);
-      await eliminarSemillaDeIDB(infoHash);
       renderizarPanelSemillas();
     }
 
     function renderizarPanelSemillas() {
       const panel = document.getElementById('panel-semillas');
       const lista = document.getElementById('lista-semillas');
-
       if (semillasActivas.size === 0) {
         panel.style.display = 'none';
         return;
       }
-
       panel.style.display = 'block';
       let totalPeers = 0;
       let totalUploadSpeed = 0;
-
       let html = '';
       semillasActivas.forEach((item, hash) => {
         const t = item.torrent;
         const peers = t.numPeers || 0;
         const upSpeed = t.uploadSpeed || 0;
         const uploaded = t.uploaded || 0;
-
         totalPeers += peers;
         totalUploadSpeed += upSpeed;
-
         const icono = item.numArchivos > 1 ? '📁' : '📄';
-        const claseOrigen = item.origen === 'Google Drive' ? 'badge-origen drive' : 'badge-origen';
-        const badgeReanudado = item.reanudado ? '<span class="badge-origen reanudado">🔄 Reanudado</span>' : '';
+        const claseOrigen = item.origen === 'Google Drive' ? 'badge-origen drive' : (item.origen.includes('Disco') ? 'badge-origen local-per' : 'badge-origen');
 
         html += `
           <div class="item-semilla">
@@ -647,70 +660,76 @@
               <div class="semilla-titulo">
                 ${icono} ${item.titulo}
                 <span class="${claseOrigen}">${item.origen}</span>
-                ${badgeReanudado}
               </div>
               <div class="semilla-meta">
                 ${item.numArchivos} archivo(s) • ${formatearTamano(item.tamanoTotal)} • Hash: <code>${hash.slice(0, 10)}...</code>
               </div>
             </div>
             <div class="semilla-metricas">
-              <div class="metrica-pill">👥 Gente conectada: <strong>${peers}</strong></div>
-              <div class="metrica-pill">⬆️ Aportando: <strong>${formatearVelocidad(upSpeed)}</strong></div>
+              <div class="metrica-pill">👥 Conectados: <strong>${peers}</strong></div>
+              <div class="metrica-pill">⬆️ Subida: <strong>${formatearVelocidad(upSpeed)}</strong></div>
               <div class="metrica-pill">📦 Enviado: <strong>${formatearTamano(uploaded)}</strong></div>
               <button type="button" class="btn-detener-seed" onclick="detenerSemilla('${hash}')">Detener</button>
             </div>
           </div>
         `;
       });
-
       lista.innerHTML = html;
       document.getElementById('global-peers').textContent = totalPeers;
       document.getElementById('global-upload-speed').textContent = formatearVelocidad(totalUploadSpeed);
     }
 
-    // Actualizar métricas del servidor cada segundo de forma fluida
     setInterval(() => {
-      if (semillasActivas.size > 0) {
-        renderizarPanelSemillas();
-      }
+      if (semillasActivas.size > 0) renderizarPanelSemillas();
     }, 1000);
 
-    // --- REANUDACIÓN AUTOMÁTICA DESDE MEMORIA LOCAL (CON CONTROL DE DUPLICADOS) ---
-    async function reanudarSemillasGuardadas() {
-      if (!client) return;
-      const guardadas = await obtenerSemillasDeIDB();
-      if (!guardadas || guardadas.length === 0) return;
+    // --- REANUDACIÓN AUTOMÁTICA DESDE DISCO LOCAL ---
+    async function comprobarReanudacionDiscoLocal() {
+      if (!client || !db) return;
+      const handleGuardado = await recuperarHandleDeIDB();
+      if (!handleGuardado) return;
 
-      for (const item of guardadas) {
-        if (!item.archivos || item.archivos.length === 0) continue;
-        
-        if (client.get(item.infoHash)) continue;
+      const permiso = await handleGuardado.queryPermission({ mode: 'read' });
+      if (permiso !== 'granted') {
+        const infoSel = document.getElementById('info-seleccion');
+        infoSel.textContent = `📁 Carpeta vinculada detectada ("${handleGuardado.name}"). Haz clic en "Vincular Carpeta PC" para reactivarla.`;
+        return;
+      }
 
-        const archivosReconstruidos = item.archivos.map((a) => {
-          const f = new File([a.blob], a.name, { type: a.type, lastModified: a.lastModified || Date.now() });
-          if (a.webkitRelativePath) {
-            Object.defineProperty(f, 'webkitRelativePath', { value: a.webkitRelativePath });
+      try {
+        let lista = [];
+        for await (const entry of handleGuardado.values()) {
+          if (entry.kind === 'file') {
+            const f = await entry.getFile();
+            Object.defineProperty(f, 'webkitRelativePath', { value: handleGuardado.name + '/' + f.name });
+            lista.push(f);
+          } else if (entry.kind === 'directory') {
+            const subs = await leerDirectorioRecursivo(entry, handleGuardado.name + '/' + entry.name + '/');
+            lista = lista.concat(subs);
           }
-          return f;
-        });
+        }
+        if (lista.length === 0) return;
 
-        try {
-          client.seed(archivosReconstruidos, { name: item.titulo, announce: trackers }, (torrent) => {
+        const totalBytes = lista.reduce((acc, f) => acc + f.size, 0);
+        const nombreTitulo = handleGuardado.name;
+
+        client.seed(lista, { name: nombreTitulo, announce: trackers }, (torrent) => {
+          if (!client.get(torrent.infoHash)) {
             registrarSemillaEnPanel(torrent, {
-              titulo: item.titulo,
-              numArchivos: archivosReconstruidos.length,
-              tamanoTotal: item.tamanoTotal,
-              origen: item.origen || 'Local',
+              titulo: nombreTitulo,
+              numArchivos: lista.length,
+              tamanoTotal: totalBytes,
+              origen: 'Disco Local (Permanente)',
               reanudado: true
             });
-          });
-        } catch (e) {
-          console.warn('Aviso al reanudar semilla:', e);
-        }
+          }
+        });
+      } catch (err) {
+        console.warn('Error al reanudar disco local:', err);
       }
     }
 
-    // --- SUBIDA LOCAL ---
+    // --- SUBIDA TRADICIONAL ---
     let archivosSeleccionados = [];
     const inputArchivos = document.getElementById('input-archivos');
     const inputCarpeta = document.getElementById('input-carpeta');
@@ -724,94 +743,34 @@
     function establecerSeleccion(listaArchivos, nombreSugerido) {
       archivosSeleccionados = Array.from(listaArchivos);
       if (archivosSeleccionados.length === 0) return;
-
       const totalBytes = archivosSeleccionados.reduce((acc, f) => acc + f.size, 0);
       infoSeleccion.classList.add('cargado');
-
-      if (archivosSeleccionados.length === 1 && !archivosSeleccionados[0].webkitRelativePath) {
-        infoSeleccion.textContent = `📄 ${archivosSeleccionados[0].name} (${formatearTamano(totalBytes)})`;
-        if (!inputTitulo.value) inputTitulo.value = archivosSeleccionados[0].name;
-      } else {
-        const rutaEjemplo = archivosSeleccionados[0].webkitRelativePath || '';
-        const nombreCarpeta = nombreSugerido || (rutaEjemplo.includes('/') ? rutaEjemplo.split('/')[0] : 'Carpeta');
-        infoSeleccion.textContent = `📁 ${nombreCarpeta} — ${archivosSeleccionados.length} archivos (${formatearTamano(totalBytes)})`;
-        if (!inputTitulo.value) inputTitulo.value = nombreCarpeta;
-      }
+      const nombreCarpeta = nombreSugerido || 'Selección';
+      infoSeleccion.textContent = `📄/📁 ${archivosSeleccionados.length} archivos (${formatearTamano(totalBytes)})`;
+      if (!inputTitulo.value) inputTitulo.value = nombreCarpeta;
     }
 
-    inputArchivos.addEventListener('change', (e) => establecerSeleccion(e.target.files));
-    inputCarpeta.addEventListener('change', (e) => establecerSeleccion(e.target.files));
-
-    zonaDrop.addEventListener('dragover', (e) => { e.preventDefault(); zonaDrop.classList.add('dragover'); });
-    zonaDrop.addEventListener('dragleave', () => zonaDrop.classList.remove('dragover'));
-
-    async function leerEntradaRecursiva(entry, rutaBase = '') {
-      if (entry.isFile) {
-        return new Promise((resolve) => {
-          entry.file((file) => {
-            Object.defineProperty(file, 'webkitRelativePath', { value: rutaBase + file.name });
-            resolve([file]);
-          });
-        });
-      } else if (entry.isDirectory) {
-        const dirReader = entry.createReader();
-        const leerTodos = () => new Promise((resolve) => {
-          let entradas = [];
-          const leerLote = () => {
-            dirReader.readEntries((resultados) => {
-              if (!resultados.length) resolve(entradas);
-              else { entradas = entradas.concat(resultados); leerLote(); }
-            });
-          };
-          leerLote();
-        });
-        const entradas = await leerTodos();
-        let archivos = [];
-        for (const subEntry of entradas) {
-          const subArchivos = await leerEntradaRecursiva(subEntry, rutaBase + entry.name + '/');
-          archivos = archivos.concat(subArchivos);
-        }
-        return archivos;
-      }
-      return [];
-    }
-
-    zonaDrop.addEventListener('drop', async (e) => {
-      e.preventDefault();
-      zonaDrop.classList.remove('dragover');
-      const items = e.dataTransfer.items;
-      if (!items) return;
-
-      infoSeleccion.textContent = 'Leyendo archivos...';
-      let todosLosArchivos = [];
-      let nombreCarpetaRaiz = null;
-
-      for (let i = 0; i < items.length; i++) {
-        const entry = items[i].webkitGetAsEntry ? items[i].webkitGetAsEntry() : null;
-        if (entry) {
-          if (entry.isDirectory && items.length === 1) nombreCarpetaRaiz = entry.name;
-          const extraidos = await leerEntradaRecursiva(entry);
-          todosLosArchivos = todosLosArchivos.concat(extraidos);
-        }
-      }
-      if (todosLosArchivos.length > 0) establecerSeleccion(todosLosArchivos, nombreCarpetaRaiz);
-    });
+    inputArchivos.addEventListener('change', (e) => establecerSeleccion(e.target.files, e.target.files[0]?.name));
+    inputCarpeta.addEventListener('change', (e) => establecerSeleccion(e.target.files, e.target.files[0]?.webkitRelativePath?.split('/')[0] || 'Carpeta'));
 
     document.getElementById('form-subir').addEventListener('submit', function(e) {
       e.preventDefault();
-      if (!client || !db || archivosSeleccionados.length === 0) return;
+      if (!client || !db) return alert('Sistema no inicializado.');
+      if (!archivosSeleccionados || archivosSeleccionados.length === 0) {
+        alert('Selecciona archivos o vincula una carpeta del PC.');
+        return;
+      }
 
       const btn = document.getElementById('btn-publicar');
       btn.disabled = true;
       btn.textContent = 'Generando Torrent P2P...';
 
-      const nombreTorrent = document.getElementById('titulo').value.trim();
-      const copiaArchivos = [...archivosSeleccionados];
-      const totalBytes = copiaArchivos.reduce((acc, f) => acc + f.size, 0);
+      const nombreTorrent = inputTitulo.value.trim();
+      const copia = [...archivosSeleccionados];
+      const totalBytes = copia.reduce((acc, f) => acc + f.size, 0);
 
-      client.seed(copiaArchivos, { name: nombreTorrent, announce: trackers }, async function(torrent) {
+      client.seed(copia, { name: nombreTorrent, announce: trackers }, async (torrent) => {
         const { data: yaExiste } = await db.from('torrents').select('id').eq('info_hash', torrent.infoHash);
-
         if (!yaExiste || yaExiste.length === 0) {
           await db.from('torrents').insert([{
             titulo: nombreTorrent,
@@ -821,37 +780,14 @@
           }]);
         }
 
-        const archivosSerializables = copiaArchivos.map((f) => ({
-          name: f.name,
-          type: f.type,
-          lastModified: f.lastModified,
-          webkitRelativePath: f.webkitRelativePath || '',
-          blob: f
-        }));
-
-        await guardarSemillaEnIDB({
-          infoHash: torrent.infoHash,
-          titulo: nombreTorrent,
-          tamanoTotal: totalBytes,
-          origen: 'Local',
-          archivos: archivosSerializables
-        });
-
         btn.disabled = false;
         btn.textContent = 'Crear Torrent y Publicar';
-
-        registrarSemillaEnPanel(torrent, {
-          titulo: nombreTorrent,
-          numArchivos: copiaArchivos.length,
-          tamanoTotal: totalBytes,
-          origen: 'Local'
-        });
+        registrarSemillaEnPanel(torrent, { titulo: nombreTorrent, numArchivos: copia.length, tamanoTotal: totalBytes, origen: handleCarpetaLocal ? 'Disco Local (Permanente)' : 'Local' });
 
         e.target.reset();
         archivosSeleccionados = [];
         infoSeleccion.classList.remove('cargado');
-        infoSeleccion.textContent = 'O arrastra y suelta aquí tus archivos o carpetas';
-        
+        infoSeleccion.textContent = 'O arrastra archivos o vincula tu carpeta local permanente';
         cargarCatalogo();
         cambiarPestana('descargar');
       });
@@ -869,17 +805,14 @@
 
     if (clientIdGuardado) document.getElementById('drive-client-id').value = clientIdGuardado;
     if (folderIdGuardado) document.getElementById('drive-folder-url').value = folderIdGuardado;
+
     if (driveActivoAntes && clientIdGuardado && folderIdGuardado) {
       document.getElementById('banner-reanudar').style.display = 'flex';
     }
 
-    document.getElementById('btn-reanudar-drive-rapido').addEventListener('click', () => {
-      iniciarConexionDrive(clientIdGuardado, folderIdGuardado, true);
-    });
-
+    document.getElementById('btn-reanudar-drive-rapido').addEventListener('click', () => iniciarConexionDrive(clientIdGuardado, folderIdGuardado, true));
     document.getElementById('btn-olvidar-drive').addEventListener('click', () => {
       localStorage.removeItem('pititorrent_drive_activo');
-      localStorage.removeItem('pititorrent_drive_folder_id');
       document.getElementById('banner-reanudar').style.display = 'none';
     });
 
@@ -896,17 +829,13 @@
       const box = document.getElementById('estado-drive-box');
       const logEl = document.getElementById('drive-log');
       box.classList.add('activo');
-      const hora = new Date().toLocaleTimeString();
       const linea = document.createElement('div');
-      linea.textContent = `[${hora}] ${mensaje}`;
+      linea.textContent = `[${new Date().toLocaleTimeString()}] ${mensaje}`;
       logEl.prepend(linea);
     }
 
     function iniciarConexionDrive(clientId, folderInput, esReanudacion = false) {
-      if (!client) return;
       driveFolderId = extraerIdCarpetaDrive(folderInput);
-      if (!clientId || !driveFolderId) return;
-
       localStorage.setItem('pititorrent_drive_client_id', clientId);
       localStorage.setItem('pititorrent_drive_folder_id', driveFolderId);
 
@@ -914,15 +843,12 @@
         client_id: clientId,
         scope: 'https://www.googleapis.com/auth/drive.readonly',
         callback: async (tokenResponse) => {
-          if (tokenResponse.error) return;
+          if (tokenResponse.error) return logDrive('Error: ' + tokenResponse.error);
           driveAccessToken = tokenResponse.access_token;
           localStorage.setItem('pititorrent_drive_activo', 'true');
           document.getElementById('banner-reanudar').style.display = 'none';
-
-          document.getElementById('btn-conectar-drive').textContent = '✅ Carpeta Conectada';
           document.getElementById('btn-conectar-drive').disabled = true;
           document.getElementById('btn-sincronizar-ahora').style.display = 'inline-block';
-          
           await sincronizarCarpetaDrive(esReanudacion);
           if (intervaloDrive) clearInterval(intervaloDrive);
           intervaloDrive = setInterval(() => sincronizarCarpetaDrive(false), 45000);
@@ -931,102 +857,111 @@
       tokenClient.requestAccessToken({ prompt: '' });
     }
 
-    document.getElementById('form-drive').addEventListener('submit', function(e) {
+    document.getElementById('form-drive').addEventListener('submit', (e) => {
       e.preventDefault();
       iniciarConexionDrive(document.getElementById('drive-client-id').value.trim(), document.getElementById('drive-folder-url').value.trim(), false);
     });
 
-    document.getElementById('btn-desconectar-drive').addEventListener('click', () => {
-      driveAccessToken = null;
-      localStorage.removeItem('pititorrent_drive_activo');
-      if (intervaloDrive) clearInterval(intervaloDrive);
-      document.getElementById('btn-conectar-drive').disabled = false;
-      document.getElementById('btn-conectar-drive').textContent = '🔗 Conectar y Sincronizar Carpeta';
-      document.getElementById('btn-sincronizar-ahora').style.display = 'none';
-      logDrive('Desconectado de Google Drive.');
-    });
-
-    async function sincronizarCarpetaDrive(esReanudacion = false) {
+    async function sincronizarCarpetaDrive(esReanudacion) {
       if (!driveAccessToken || !driveFolderId) return;
-
       try {
-        const metaFolderRes = await fetch(`https://www.googleapis.com/drive/v3/files/${driveFolderId}?fields=id,name`, {
-          headers: { Authorization: `Bearer ${driveAccessToken}` }
-        });
-        const folderInfo = await metaFolderRes.json();
-        document.getElementById('drive-estado-titulo').textContent = `☁️ Carpeta Drive: ${folderInfo.name}`;
+        const metaRes = await fetch(`https://www.googleapis.com/drive/v3/files/${driveFolderId}?fields=id,name`, { headers: { Authorization: `Bearer ${driveAccessToken}` } });
+        const folderInfo = await metaRes.json();
+        document.getElementById('drive-estado-titulo').textContent = `☁️ Drive: ${folderInfo.name}`;
 
         const query = encodeURIComponent(`'${driveFolderId}' in parents and trashed = false and mimeType != 'application/vnd.google-apps.folder'`);
-        const listRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${query}&fields=files(id,name,size,mimeType)`, {
-          headers: { Authorization: `Bearer ${driveAccessToken}` }
-        });
+        const listRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${query}&fields=files(id,name,size,mimeType)`, { headers: { Authorization: `Bearer ${driveAccessToken}` } });
         const listData = await listRes.json();
         if (!listData.files) return;
 
-        const { data: existentes } = await db.from('torrents').select('info_hash, titulo');
-        const hashesExistentes = new Set((existentes || []).map(x => x.info_hash));
+        const { data: existentes } = await db.from('torrents').select('info_hash');
+        const hashes = new Set((existentes || []).map(x => x.info_hash));
 
-        for (const fileMeta of listData.files) {
-          if (driveArchivosProcesados.has(fileMeta.id)) continue;
-          if (fileMeta.mimeType && fileMeta.mimeType.startsWith('application/vnd.google-apps.')) continue;
-
-          const dlRes = await fetch(`https://www.googleapis.com/drive/v3/files/${fileMeta.id}?alt=media`, {
-            headers: { Authorization: `Bearer ${driveAccessToken}` }
-          });
+        for (const fMeta of listData.files) {
+          if (driveArchivosProcesados.has(fMeta.id)) continue;
+          const dlRes = await fetch(`https://www.googleapis.com/drive/v3/files/${fMeta.id}?alt=media`, { headers: { Authorization: `Bearer ${driveAccessToken}` } });
           const blob = await dlRes.blob();
-          const fileObj = new File([blob], fileMeta.name, { type: fileMeta.mimeType || blob.type });
+          const fileObj = new File([blob], fMeta.name, { type: fMeta.mimeType });
 
-          await new Promise((resolve) => {
-            client.seed([fileObj], { name: fileMeta.name, announce: trackers }, async (torrent) => {
-              driveArchivosProcesados.add(fileMeta.id);
+          client.seed([fileObj], { name: fMeta.name, announce: trackers }, async (torrent) => {
+            driveArchivosProcesados.add(fMeta.id);
+            registrarSemillaEnPanel(torrent, { titulo: fMeta.name, numArchivos: 1, tamanoTotal: fileObj.size, origen: 'Google Drive', reanudado: esReanudacion });
+            if (!hashes.has(torrent.infoHash)) {
+              await db.from('torrents').insert([{ titulo: fMeta.name, descripcion: 'Google Drive Server', imagen: 'https://placehold.co/600x400/16222f/64b5f6?text=Drive', info_hash: torrent.infoHash }]);
+              hashes.add(torrent.infoHash);
+              cargarCatalogo();
+            }
+          });
+        }
+      } catch (err) { logDrive('Error sync: ' + err.message); }
+    }
 
-              registrarSemillaEnPanel(torrent, {
-                titulo: fileMeta.name,
-                numArchivos: 1,
-                tamanoTotal: fileObj.size,
-                origen: 'Google Drive',
-                reanudado: esReanudacion || hashesExistentes.has(torrent.infoHash)
-              });
-
-              if (!hashesExistentes.has(torrent.infoHash)) {
-                await db.from('torrents').insert([{
-                  titulo: fileMeta.name,
-                  descripcion: `Compartido desde servidor Google Drive (${folderInfo.name})`,
-                  imagen: 'https://placehold.co/600x400/16222f/64b5f6?text=Google+Drive+P2P',
-                  info_hash: torrent.infoHash
-                }]);
-                hashesExistentes.add(torrent.infoHash);
-                cargarCatalogo();
+    // --- CATÁLOGOS Y DESCARGAS BLINDADAS ---
+    async function guardarArchivosDeTorrent(torrent, detallesEl) {
+      if (torrent.files.length === 1) {
+        const file = torrent.files[0];
+        file.getBlobURL(function(err, url) {
+          if (err) return alert('Error al generar descarga: ' + err.message);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = file.name;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+        });
+      } else {
+        if (typeof JSZip === 'undefined') {
+          alert('No se pudo cargar JSZip. Se descargarán los archivos uno por uno.');
+          torrent.files.forEach(file => {
+            file.getBlobURL((err, url) => {
+              if (!err) {
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = file.name;
+                a.click();
               }
-              resolve();
+            });
+          });
+          return;
+        }
+
+        if (detallesEl) detallesEl.textContent = 'Empaquetando carpeta en ZIP...';
+        const zip = new JSZip();
+
+        try {
+          for (const file of torrent.files) {
+            const blob = await new Promise((resolve, reject) => {
+              file.getBlob((err, b) => {
+                if (err || !b) reject(err || new Error('Blob vacío para ' + file.name));
+                else resolve(b);
+              });
+            });
+            zip.file(file.path, blob);
+          }
+
+          const zipBlob = await zip.generateAsync({ type: 'blob' });
+          const url = URL.createObjectURL(zipBlob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = (torrent.name || 'carpeta_pititorrent') + '.zip';
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          if (detallesEl) detallesEl.textContent = '100% • Carpeta ZIP guardada';
+        } catch (e) {
+          console.error('Error al empaquetar ZIP:', e);
+          if (detallesEl) detallesEl.textContent = 'Error al crear el ZIP. Reintentando descarga individual...';
+          torrent.files.forEach(file => {
+            file.getBlobURL((err, url) => {
+              if (!err) {
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = file.name;
+                a.click();
+              }
             });
           });
         }
-      } catch (err) {}
-    }
-
-    // --- CATÁLOGO Y DESCARGA ---
-    async function guardarArchivosDeTorrent(torrent, detallesEl) {
-      if (torrent.files.length === 1) {
-        torrent.files[0].getBlobURL((err, url) => {
-          if (!err) {
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = torrent.files[0].name;
-            a.click();
-          }
-        });
-      } else {
-        const zip = new JSZip();
-        for (const file of torrent.files) {
-          const blob = await new Promise((res, rej) => file.getBlob((e, b) => e ? rej(e) : res(b)));
-          zip.file(file.path, blob);
-        }
-        const zipBlob = await zip.generateAsync({ type: 'blob' });
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(zipBlob);
-        a.download = (torrent.name || 'carpeta') + '.zip';
-        a.click();
       }
     }
 
@@ -1034,24 +969,20 @@
       if (!db) return;
       const res = await db.from('torrents').select('*').order('id', { ascending: false });
       if (res.error || !res.data || res.data.length === 0) {
-        catalogoEl.innerHTML = '<p style="color:#aaa;">Aún no hay archivos publicados.</p>';
+        catalogoEl.innerHTML = '<p style="color:#aaa;">No hay archivos publicados.</p>';
         return;
       }
-
       catalogoEl.innerHTML = '';
-      res.data.forEach((item) => {
+      res.data.forEach(item => {
         const tarjeta = document.createElement('article');
         tarjeta.className = 'tarjeta';
-        const imgUrl = item.imagen || 'https://placehold.co/600x400/1e1e1e/00e676?text=PitiTorrent';
-        const botonBorrarHtml = modoAdmin ? '<button type="button" class="btn-borrar" id="del-' + item.id + '">🗑️ Eliminar</button>' : '';
-
         tarjeta.innerHTML = `
-          <img src="${imgUrl}" alt="${item.titulo}">
+          <img src="${item.imagen || 'https://placehold.co/600x400/1e1e1e/00e676?text=PitiTorrent'}" onerror="this.src='https://placehold.co/600x400/1e1e1e/00e676?text=PitiTorrent'">
           <div class="contenido">
             <h3>${item.titulo}</h3>
             <p>${item.descripcion || 'Sin descripción'}</p>
             <button class="btn" id="btn-${item.id}">Descargar P2P</button>
-            ${botonBorrarHtml}
+            ${modoAdmin ? `<button type="button" class="btn-borrar" id="del-${item.id}">🗑️ Eliminar</button>` : ''}
             <div class="zona-progreso" id="prog-zona-${item.id}">
               <div class="barra-fondo"><div class="barra-progreso" id="barra-${item.id}"></div></div>
               <div class="detalles" id="detalles-${item.id}">Conectando...</div>
@@ -1061,79 +992,63 @@
                 <span>⬆️ Aportando: <strong id="up-${item.id}">0 KB/s</strong></span>
               </div>
             </div>
-          </div>
-        `;
+          </div>`;
         catalogoEl.appendChild(tarjeta);
 
-        document.getElementById('btn-' + item.id).addEventListener('click', () => iniciarDescarga(item.info_hash, item.id, item.titulo));
+        document.getElementById(`btn-${item.id}`).addEventListener('click', () => iniciarDescarga(item.info_hash, item.id, item.titulo));
         if (modoAdmin) {
-          document.getElementById('del-' + item.id).addEventListener('click', () => eliminarTorrent(item.id, item.titulo, item.info_hash));
+          document.getElementById(`del-${item.id}`).addEventListener('click', () => eliminarTorrent(item.id, item.titulo, item.info_hash));
         }
       });
     }
 
     function iniciarDescarga(infoHash, id, titulo) {
-      if (!client) return;
-      const btn = document.getElementById('btn-' + id);
-      const zona = document.getElementById('prog-zona-' + id);
-      const barra = document.getElementById('barra-' + id);
-      const detalles = document.getElementById('detalles-' + id);
-      const peersEl = document.getElementById('peers-' + id);
-      const downEl = document.getElementById('down-' + id);
-      const upEl = document.getElementById('up-' + id);
+      if (!client) return alert('WebTorrent no disponible.');
+      const btn = document.getElementById(`btn-${id}`);
+      const zona = document.getElementById(`prog-zona-${id}`);
+      const barra = document.getElementById(`barra-${id}`);
+      const detalles = document.getElementById(`detalles-${id}`);
+      const peersEl = document.getElementById(`peers-${id}`);
+      const downEl = document.getElementById(`down-${id}`);
+      const upEl = document.getElementById(`up-${id}`);
 
       const existente = client.get(infoHash);
       if (existente) {
         zona.style.display = 'block';
-        if (existente.done || existente.progress === 1) {
-          barra.style.width = '100%';
-          btn.textContent = '¡Descargado!';
-          guardarArchivosDeTorrent(existente, detalles);
-        }
+        if (existente.done) guardarArchivosDeTorrent(existente, detalles);
         return;
       }
 
       btn.disabled = true;
-      btn.textContent = 'Buscando semillas...';
+      btn.textContent = 'Buscando...';
       zona.style.display = 'block';
 
-      const magnet = 'magnet:?xt=urn:btih:' + infoHash + '&tr=' + trackers.map(encodeURIComponent).join('&tr=');
-
-      client.add(magnet, function(torrent) {
+      const magnet = `magnet:?xt=urn:btih:${infoHash}&tr=` + trackers.map(encodeURIComponent).join('&tr=');
+      client.add(magnet, (torrent) => {
         btn.textContent = 'Descargando...';
-        let guardado = false;
-
-        const intervalo = setInterval(() => {
-          if (torrent.destroyed) { clearInterval(intervalo); return; }
-          const porcentaje = Math.round(torrent.progress * 100);
-          barra.style.width = porcentaje + '%';
+        const interval = setInterval(() => {
+          if (torrent.destroyed) return clearInterval(interval);
+          const porc = Math.round(torrent.progress * 100);
+          barra.style.width = porc + '%';
           if (peersEl) peersEl.textContent = torrent.numPeers;
           if (downEl) downEl.textContent = formatearVelocidad(torrent.downloadSpeed);
           if (upEl) upEl.textContent = formatearVelocidad(torrent.uploadSpeed);
-          detalles.textContent = torrent.done ? `100% • Compartiendo` : `${porcentaje}% • ${formatearVelocidad(torrent.downloadSpeed)}`;
+          detalles.textContent = `${porc}% completado`;
         }, 500);
 
         torrent.on('done', () => {
-          if (guardado) return;
-          guardado = true;
+          clearInterval(interval);
           barra.style.width = '100%';
           btn.disabled = false;
-          btn.textContent = '¡Descargado! (Guardar de nuevo)';
+          btn.textContent = '¡Descargado!';
           guardarArchivosDeTorrent(torrent, detalles);
-
-          registrarSemillaEnPanel(torrent, {
-            titulo: titulo || torrent.name,
-            numArchivos: torrent.files.length,
-            tamanoTotal: torrent.length,
-            origen: 'Cliente (Seeding)'
-          });
+          registrarSemillaEnPanel(torrent, { titulo: titulo || torrent.name, numArchivos: torrent.files.length, tamanoTotal: torrent.length, origen: 'Cliente (Seeding)' });
         });
       });
     }
 
-    // Inicializar al cargar
     cargarCatalogo();
-    reanudarSemillasGuardadas();
+    comprobarReanudacionDiscoLocal();
   </script>
 </body>
 </html>
