@@ -55,6 +55,45 @@
     .banner-diagnostico p { margin: 0 0 8px 0; font-size: 0.9rem; color: #ffcdd2; line-height: 1.4; }
     .banner-diagnostico ul { margin: 8px 0 0 0; padding-left: 20px; font-size: 0.85rem; color: #ffebee; }
 
+    /* Banner de reanudación de sesión de servidor */
+    .banner-reanudar {
+      max-width: 1100px;
+      margin: 0 auto 22px auto;
+      background: #162333;
+      border: 1px solid #42a5f566;
+      border-left: 5px solid #42a5f5;
+      padding: 14px 20px;
+      border-radius: 10px;
+      display: none;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .banner-reanudar p { margin: 0; font-size: 0.92rem; color: #e3f2fd; }
+    .banner-reanudar-acciones { display: flex; gap: 10px; }
+    .btn-reanudar-ahora {
+      background: #42a5f5;
+      color: #0d1620;
+      border: none;
+      padding: 8px 14px;
+      border-radius: 7px;
+      font-weight: 700;
+      cursor: pointer;
+      font-size: 0.85rem;
+    }
+    .btn-reanudar-ahora:hover { background: #64b5f6; }
+    .btn-descartar-sesion {
+      background: transparent;
+      color: #90caf9;
+      border: 1px solid #42a5f555;
+      padding: 8px 12px;
+      border-radius: 7px;
+      cursor: pointer;
+      font-size: 0.82rem;
+    }
+    .btn-descartar-sesion:hover { background: #1e3147; }
+
     /* Panel global de semillas activas con métricas en vivo */
     .panel-semillas {
       max-width: 1100px;
@@ -115,6 +154,7 @@
       vertical-align: middle;
     }
     .badge-origen.drive { background: #1a283b; color: #64b5f6; border: 1px solid #64b5f644; }
+    .badge-origen.reanudado { background: #292315; color: #ffd54f; border: 1px solid #ffd54f44; }
     .semilla-metricas {
       display: flex;
       gap: 14px;
@@ -279,6 +319,15 @@
     <ul id="detalles-diagnostico"></ul>
   </section>
 
+  <!-- Banner de reanudación automática/manual si saliste y volviste siendo servidor -->
+  <section class="banner-reanudar" id="banner-reanudar">
+    <p id="texto-banner-reanudar">☁️ Tenías una carpeta de Google Drive actuando como servidor antes de salir.</p>
+    <div class="banner-reanudar-acciones">
+      <button type="button" class="btn-reanudar-ahora" id="btn-reanudar-drive-rapido">🔄 Reanudar Servidor Drive</button>
+      <button type="button" class="btn-descartar-sesion" id="btn-olvidar-drive">Olvidar sesión</button>
+    </div>
+  </section>
+
   <!-- Panel global de semillas activas con métricas en tiempo real -->
   <section class="panel-semillas" id="panel-semillas">
     <div class="panel-semillas-header">
@@ -308,7 +357,7 @@
       <div class="formulario-caja">
         <h3>💻 Compartir desde este dispositivo</h3>
         <div class="aviso-seed">
-          <strong>Importante:</strong> Mantén esta pestaña abierta mientras otros descargan tu contenido. Arriba podrás ver cuánta gente está conectada y a qué velocidad estás enviando.
+          <strong>Persistencia automática:</strong> Tus archivos se guardan en la memoria del navegador (IndexedDB). Si cierras la pestaña y vuelves más tarde, se reanudarán automáticamente como servidor sin duplicarse en el catálogo.
         </div>
         <form id="form-subir">
           <input type="file" id="input-archivos" multiple style="display: none;">
@@ -333,7 +382,7 @@
       <div class="formulario-caja">
         <h3>☁️ Conectar Carpeta de Google Drive (Modo Servidor)</h3>
         <div class="aviso-drive">
-          Conecta una carpeta de tu Google Drive para que esta pestaña actúe como <strong>servidor P2P automático</strong>: leerá los archivos de la carpeta, los publicará en el catálogo y los compartirá en tiempo real.
+          Conecta una carpeta de tu Google Drive para que esta pestaña actúe como <strong>servidor P2P automático</strong>. Si sales y vuelves a entrar, podrás reanudar la conexión con un clic para seguir sirviendo los mismos archivos.
         </div>
         <form id="form-drive">
           <input type="text" id="drive-client-id" placeholder="Google OAuth Client ID (ej. 123456-abc.apps.googleusercontent.com)" required>
@@ -382,6 +431,66 @@
         return kbps.toFixed(1) + ' KB/s';
       }
       return (kbps / 1024).toFixed(2) + ' MB/s';
+    }
+
+    // --- BASE DE DATOS LOCAL (INDEXEDDB) PARA REANUDAR SEMILLAS AL VOLVER ---
+    const IDB_NAME = 'PitiTorrentServidorDB';
+    const IDB_STORE = 'semillas_guardadas';
+
+    function abrirIDB() {
+      return new Promise((resolve, reject) => {
+        const req = indexedDB.open(IDB_NAME, 1);
+        req.onupgradeneeded = (e) => {
+          const idb = e.target.result;
+          if (!idb.objectStoreNames.contains(IDB_STORE)) {
+            idb.createObjectStore(IDB_STORE, { keyPath: 'infoHash' });
+          }
+        };
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
+    }
+
+    async function guardarSemillaEnIDB(registro) {
+      try {
+        const idb = await abrirIDB();
+        return new Promise((resolve, reject) => {
+          const tx = idb.transaction(IDB_STORE, 'readwrite');
+          tx.objectStore(IDB_STORE).put(registro);
+          tx.oncomplete = () => resolve();
+          tx.onerror = () => reject(tx.error);
+        });
+      } catch (err) {
+        console.warn('No se pudo guardar en IndexedDB:', err);
+      }
+    }
+
+    async function obtenerSemillasDeIDB() {
+      try {
+        const idb = await abrirIDB();
+        return new Promise((resolve, reject) => {
+          const tx = idb.transaction(IDB_STORE, 'readonly');
+          const req = tx.objectStore(IDB_STORE).getAll();
+          req.onsuccess = () => resolve(req.result || []);
+          req.onerror = () => reject(req.error);
+        });
+      } catch (err) {
+        console.warn('Error leyendo IndexedDB:', err);
+        return [];
+      }
+    }
+
+    async function eliminarSemillaDeIDB(infoHash) {
+      try {
+        const idb = await abrirIDB();
+        return new Promise((resolve) => {
+          const tx = idb.transaction(IDB_STORE, 'readwrite');
+          tx.objectStore(IDB_STORE).delete(infoHash);
+          tx.oncomplete = () => resolve();
+        });
+      } catch (err) {
+        console.warn('Error eliminando de IndexedDB:', err);
+      }
     }
 
     // --- NAVEGACIÓN ENTRE APARTADOS ---
@@ -466,6 +575,7 @@
         const activo = client.get(infoHash);
         if (activo) activo.destroy();
         semillasActivas.delete(infoHash);
+        await eliminarSemillaDeIDB(infoHash);
         renderizarPanelSemillas();
       }
 
@@ -526,7 +636,6 @@
     ];
 
     // --- MONITOR EN TIEMPO REAL DE SEMILLAS (SERVIDOR) ---
-    // Map<infoHash, { torrent, titulo, numArchivos, tamanoTotal, origen }>
     const semillasActivas = new Map();
 
     function registrarSemillaEnPanel(torrent, meta) {
@@ -535,17 +644,19 @@
         titulo: meta.titulo || torrent.name,
         numArchivos: meta.numArchivos || torrent.files.length,
         tamanoTotal: meta.tamanoTotal || torrent.length,
-        origen: meta.origen || 'Local'
+        origen: meta.origen || 'Local',
+        reanudado: Boolean(meta.reanudado)
       });
       renderizarPanelSemillas();
     }
 
-    function detenerSemilla(infoHash) {
+    async function detenerSemilla(infoHash) {
       const registro = semillasActivas.get(infoHash);
       if (registro && registro.torrent) {
         registro.torrent.destroy();
       }
       semillasActivas.delete(infoHash);
+      await eliminarSemillaDeIDB(infoHash);
       renderizarPanelSemillas();
     }
 
@@ -574,6 +685,7 @@
 
         const icono = item.numArchivos > 1 ? '📁' : '📄';
         const claseOrigen = item.origen === 'Google Drive' ? 'badge-origen drive' : 'badge-origen';
+        const badgeReanudado = item.reanudado ? '<span class="badge-origen reanudado">🔄 Reanudado</span>' : '';
 
         html += `
           <div class="item-semilla">
@@ -581,6 +693,7 @@
               <div class="semilla-titulo">
                 ${icono} ${item.titulo}
                 <span class="${claseOrigen}">${item.origen}</span>
+                ${badgeReanudado}
               </div>
               <div class="semilla-meta">
                 ${item.numArchivos} archivo(s) • ${formatearTamano(item.tamanoTotal)} • Hash: <code>${hash.slice(0, 10)}...</code>
@@ -601,12 +714,42 @@
       document.getElementById('global-upload-speed').textContent = formatearVelocidad(totalUploadSpeed);
     }
 
-    // Actualizar estadísticas del panel servidor cada 1 segundo
     setInterval(() => {
       if (semillasActivas.size > 0) {
         renderizarPanelSemillas();
       }
     }, 1000);
+
+    // --- REANUDACIÓN AUTOMÁTICA DE SEMILLAS LOCALES AL VOLVER ---
+    async function reanudarSemillasGuardadas() {
+      if (!client) return;
+      const guardadas = await obtenerSemillasDeIDB();
+      if (!guardadas || guardadas.length === 0) return;
+
+      for (const item of guardadas) {
+        if (!item.archivos || item.archivos.length === 0) continue;
+        if (client.get(item.infoHash)) continue;
+
+        // Reconstruir los objetos File con sus rutas relativas originales para que el infoHash sea idéntico
+        const archivosReconstruidos = item.archivos.map((a) => {
+          const f = new File([a.blob], a.name, { type: a.type, lastModified: a.lastModified || Date.now() });
+          if (a.webkitRelativePath) {
+            Object.defineProperty(f, 'webkitRelativePath', { value: a.webkitRelativePath });
+          }
+          return f;
+        });
+
+        client.seed(archivosReconstruidos, { name: item.titulo, announce: trackers }, (torrent) => {
+          registrarSemillaEnPanel(torrent, {
+            titulo: item.titulo,
+            numArchivos: archivosReconstruidos.length,
+            tamanoTotal: item.tamanoTotal,
+            origen: item.origen || 'Local',
+            reanudado: true
+          });
+        });
+      }
+    }
 
     // --- GESTIÓN DE ARCHIVOS Y CARPETAS LOCALES (APARTADO SUBIR) ---
     let archivosSeleccionados = [];
@@ -742,25 +885,48 @@
       const totalBytes = copiaArchivos.reduce((acc, f) => acc + f.size, 0);
 
       client.seed(copiaArchivos, { name: nombreTorrent, announce: trackers }, async function(torrent) {
-        const nuevo = {
-          titulo: nombreTorrent,
-          descripcion: document.getElementById('descripcion').value,
-          imagen: document.getElementById('imagen').value,
-          info_hash: torrent.infoHash
-        };
+        // Evitar duplicados en Supabase si el archivo ya existía con el mismo infoHash
+        const { data: yaExiste } = await db.from('torrents').select('id').eq('info_hash', torrent.infoHash);
 
-        const res = await db.from('torrents').insert([nuevo]);
-        
+        if (!yaExiste || yaExiste.length === 0) {
+          const nuevo = {
+            titulo: nombreTorrent,
+            descripcion: document.getElementById('descripcion').value,
+            imagen: document.getElementById('imagen').value,
+            info_hash: torrent.infoHash
+          };
+
+          const res = await db.from('torrents').insert([nuevo]);
+          if (res.error) {
+            btn.disabled = false;
+            btn.textContent = 'Crear Torrent y Publicar';
+            alert('Error al guardar en base de datos: ' + res.error.message);
+            return;
+          }
+        }
+
+        // Guardar en IndexedDB para que al salir y volver se reanude automáticamente
+        const archivosSerializables = copiaArchivos.map((f) => ({
+          name: f.name,
+          type: f.type,
+          lastModified: f.lastModified,
+          webkitRelativePath: f.webkitRelativePath || '',
+          blob: f
+        }));
+
+        await guardarSemillaEnIDB({
+          infoHash: torrent.infoHash,
+          titulo: nombreTorrent,
+          tamanoTotal: totalBytes,
+          origen: 'Local',
+          archivos: archivosSerializables
+        });
+
         btn.disabled = false;
         btn.textContent = 'Crear Torrent y Publicar';
 
-        if (res.error) {
-          alert('Error al guardar en base de datos: ' + res.error.message);
-          return;
-        }
-
         registrarSemillaEnPanel(torrent, {
-          titulo: nuevo.titulo,
+          titulo: nombreTorrent,
           numArchivos: copiaArchivos.length,
           tamanoTotal: totalBytes,
           origen: 'Local'
@@ -776,17 +942,38 @@
       });
     });
 
-    // --- INTEGRACIÓN GOOGLE DRIVE COMO SERVIDOR AUTOMÁTICO ---
+    // --- INTEGRACIÓN GOOGLE DRIVE COMO SERVIDOR AUTOMÁTICO CON REANUDACIÓN ---
     let driveAccessToken = null;
     let driveFolderId = null;
     let driveArchivosProcesados = new Set();
     let intervaloDrive = null;
 
-    // Recuperar Client ID guardado si existe
     const clientIdGuardado = localStorage.getItem('pititorrent_drive_client_id');
+    const folderIdGuardado = localStorage.getItem('pititorrent_drive_folder_id');
+    const driveActivoAntes = localStorage.getItem('pititorrent_drive_activo') === 'true';
+
     if (clientIdGuardado) {
       document.getElementById('drive-client-id').value = clientIdGuardado;
     }
+    if (folderIdGuardado) {
+      document.getElementById('drive-folder-url').value = folderIdGuardado;
+    }
+
+    // Mostrar banner de reanudación si antes estaba conectado como servidor Drive
+    if (driveActivoAntes && clientIdGuardado && folderIdGuardado) {
+      const bannerReanudar = document.getElementById('banner-reanudar');
+      bannerReanudar.style.display = 'flex';
+    }
+
+    document.getElementById('btn-reanudar-drive-rapido').addEventListener('click', () => {
+      iniciarConexionDrive(clientIdGuardado, folderIdGuardado, true);
+    });
+
+    document.getElementById('btn-olvidar-drive').addEventListener('click', () => {
+      localStorage.removeItem('pititorrent_drive_activo');
+      localStorage.removeItem('pititorrent_drive_folder_id');
+      document.getElementById('banner-reanudar').style.display = 'none';
+    });
 
     function extraerIdCarpetaDrive(entrada) {
       const limpio = entrada.trim();
@@ -807,28 +994,25 @@
       logEl.prepend(linea);
     }
 
-    document.getElementById('form-drive').addEventListener('submit', function(e) {
-      e.preventDefault();
+    function iniciarConexionDrive(clientId, folderInput, esReanudacion = false) {
       if (!client) {
         alert('El motor WebTorrent no está disponible en este navegador.');
         return;
       }
 
-      const clientId = document.getElementById('drive-client-id').value.trim();
-      const folderInput = document.getElementById('drive-folder-url').value.trim();
       driveFolderId = extraerIdCarpetaDrive(folderInput);
-
       if (!clientId || !driveFolderId) {
         alert('Introduce un Client ID válido y el enlace o ID de la carpeta de Drive.');
         return;
       }
 
       if (typeof google === 'undefined' || !google.accounts || !google.accounts.oauth2) {
-        alert('No se pudo cargar la librería de Google Identity Services. Revisa tu conexión o bloqueador.');
+        alert('La librería de Google aún se está cargando. Inténtalo de nuevo en un segundo.');
         return;
       }
 
       localStorage.setItem('pititorrent_drive_client_id', clientId);
+      localStorage.setItem('pititorrent_drive_folder_id', driveFolderId);
 
       const tokenClient = google.accounts.oauth2.initTokenClient({
         client_id: clientId,
@@ -839,31 +1023,41 @@
             return;
           }
           driveAccessToken = tokenResponse.access_token;
+          localStorage.setItem('pititorrent_drive_activo', 'true');
+          document.getElementById('banner-reanudar').style.display = 'none';
+
           document.getElementById('btn-conectar-drive').textContent = '✅ Carpeta Conectada';
           document.getElementById('btn-conectar-drive').disabled = true;
           document.getElementById('btn-sincronizar-ahora').style.display = 'inline-block';
-          logDrive('Autorización correcta. Escaneando carpeta de Drive...');
+          logDrive(esReanudacion ? 'Sesión reanudada. Reconectando archivos de Drive...' : 'Autorización correcta. Escaneando carpeta de Drive...');
           
-          await sincronizarCarpetaDrive();
+          await sincronizarCarpetaDrive(esReanudacion);
 
-          // Revisar cada 45 segundos si hay nuevos archivos en la carpeta de Drive
           if (intervaloDrive) clearInterval(intervaloDrive);
-          intervaloDrive = setInterval(sincronizarCarpetaDrive, 45000);
+          intervaloDrive = setInterval(() => sincronizarCarpetaDrive(false), 45000);
         }
       });
 
       tokenClient.requestAccessToken({ prompt: '' });
+    }
+
+    document.getElementById('form-drive').addEventListener('submit', function(e) {
+      e.preventDefault();
+      const clientId = document.getElementById('drive-client-id').value.trim();
+      const folderInput = document.getElementById('drive-folder-url').value.trim();
+      iniciarConexionDrive(clientId, folderInput, false);
     });
 
     document.getElementById('btn-sincronizar-ahora').addEventListener('click', () => {
       if (driveAccessToken && driveFolderId) {
         logDrive('Buscando nuevos archivos en Google Drive...');
-        sincronizarCarpetaDrive();
+        sincronizarCarpetaDrive(false);
       }
     });
 
     document.getElementById('btn-desconectar-drive').addEventListener('click', () => {
       driveAccessToken = null;
+      localStorage.removeItem('pititorrent_drive_activo');
       if (intervaloDrive) clearInterval(intervaloDrive);
       document.getElementById('btn-conectar-drive').disabled = false;
       document.getElementById('btn-conectar-drive').textContent = '🔗 Conectar y Sincronizar Carpeta';
@@ -871,11 +1065,10 @@
       logDrive('Desconectado de Google Drive.');
     });
 
-    async function sincronizarCarpetaDrive() {
+    async function sincronizarCarpetaDrive(esReanudacion = false) {
       if (!driveAccessToken || !driveFolderId) return;
 
       try {
-        // Obtener nombre de la carpeta
         const metaFolderRes = await fetch(`https://www.googleapis.com/drive/v3/files/${driveFolderId}?fields=id,name`, {
           headers: { Authorization: `Bearer ${driveAccessToken}` }
         });
@@ -886,7 +1079,6 @@
         }
         document.getElementById('drive-estado-titulo').textContent = `☁️ Carpeta Drive: ${folderInfo.name}`;
 
-        // Listar archivos dentro de la carpeta (excluyendo subcarpetas vacías o elementos en papelera)
         const query = encodeURIComponent(`'${driveFolderId}' in parents and trashed = false and mimeType != 'application/vnd.google-apps.folder'`);
         const listRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${query}&fields=files(id,name,size,mimeType)`, {
           headers: { Authorization: `Bearer ${driveAccessToken}` }
@@ -898,21 +1090,19 @@
           return;
         }
 
-        // Obtener catálogo actual de Supabase para no duplicar registros
         const { data: existentes } = await db.from('torrents').select('info_hash, titulo');
         const hashesExistentes = new Set((existentes || []).map(x => x.info_hash));
 
         for (const fileMeta of listData.files) {
           if (driveArchivosProcesados.has(fileMeta.id)) continue;
 
-          // Ignorar documentos nativos de Google Docs/Sheets sin tamaño binario directo si no se exportan
           if (fileMeta.mimeType && fileMeta.mimeType.startsWith('application/vnd.google-apps.')) {
             logDrive(`Omitido (documento nativo Google): ${fileMeta.name}`);
             driveArchivosProcesados.add(fileMeta.id);
             continue;
           }
 
-          logDrive(`Descargando de Drive al servidor: ${fileMeta.name} (${formatearTamano(Number(fileMeta.size || 0))})...`);
+          logDrive(`Cargando desde Drive: ${fileMeta.name} (${formatearTamano(Number(fileMeta.size || 0))})...`);
 
           const dlRes = await fetch(`https://www.googleapis.com/drive/v3/files/${fileMeta.id}?alt=media`, {
             headers: { Authorization: `Bearer ${driveAccessToken}` }
@@ -934,7 +1124,8 @@
                 titulo: fileMeta.name,
                 numArchivos: 1,
                 tamanoTotal: fileObj.size,
-                origen: 'Google Drive'
+                origen: 'Google Drive',
+                reanudado: esReanudacion || hashesExistentes.has(torrent.infoHash)
               });
 
               if (!hashesExistentes.has(torrent.infoHash)) {
@@ -948,7 +1139,7 @@
                 logDrive(`Publicado y sirviendo en P2P: ${fileMeta.name}`);
                 cargarCatalogo();
               } else {
-                logDrive(`Reconectado como semilla P2P: ${fileMeta.name}`);
+                logDrive(`Conexión reanudada como semilla: ${fileMeta.name}`);
               }
               resolve();
             });
@@ -1144,7 +1335,6 @@
           detalles.textContent = '100% • Guardando archivo...';
           guardarArchivosDeTorrent(torrent, detalles);
 
-          // Registrar también en el panel global de semillas porque el cliente ahora actúa como semilla
           registrarSemillaEnPanel(torrent, {
             titulo: titulo || torrent.name,
             numArchivos: torrent.files.length,
@@ -1155,7 +1345,9 @@
       });
     }
 
+    // Iniciar catálogo y reanudar semillas locales guardadas automáticamente al cargar la página
     cargarCatalogo();
+    reanudarSemillasGuardadas();
   </script>
 </body>
 </html>
