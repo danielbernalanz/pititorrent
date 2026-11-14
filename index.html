@@ -4,8 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PitiTorrent - Compartir Archivos, Carpetas y Google Drive P2P</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📁</text></link>">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/webtorrent/1.9.7/webtorrent.min.js" onerror="window.falloCargaWebTorrent = true;"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <!-- Google Identity Services para conectar Google Drive -->
   <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -308,7 +308,7 @@
     <h1>PitiTorrent P2P</h1>
     <p>Intercambio directo de archivos, carpetas y nube entre navegadores</p>
     <div style="font-size: 0.75rem; color: #777; margin-top: 6px;">
-      Versión: <span style="color: #00e676; font-family: monospace;">v2.4.3</span> • Empaquetado Robusto Activo
+      Versión: <span style="color: #00e676; font-family: monospace;">v2.4.6</span> • Descarga Directa Segura
     </div>
   </header>
 
@@ -324,7 +324,7 @@
     <ul id="detalles-diagnostico"></ul>
   </section>
 
-  <!-- Banner de reanudación automática/manual para Google Drive -->
+  <!-- Banner de reanudación automática/manual si saliste y volviste siendo servidor -->
   <section class="banner-reanudar" id="banner-reanudar">
     <p id="texto-banner-reanudar">☁️ Tenías una carpeta de Google Drive actuando como servidor antes de salir.</p>
     <div class="banner-reanudar-acciones">
@@ -345,7 +345,7 @@
     <div id="lista-semillas"></div>
   </section>
 
-  <!-- APARTADO 1: DESCARGAR / CATÁLOGOS -->
+  <!-- APARTADO 1: DESCARGAR / CATÁLOGO -->
   <section id="vista-descargar" class="vista-seccion activa">
     <div class="cabecera-catalogo">
       <h2>Archivos y carpetas disponibles</h2>
@@ -608,11 +608,10 @@
       }
     } catch (e) {}
 
-    // Trackers estables y limpios para evitar errores
+    // Trackers estables y limpios
     const trackers = [
       'wss://tracker.openwebtorrent.com',
-      'wss://tracker.webtorrent.dev',
-      'wss://tracker.files.fm:7073/announce'
+      'wss://tracker.webtorrent.dev'
     ];
 
     const semillasActivas = new Map();
@@ -899,75 +898,32 @@
       } catch (err) { logDrive('Error sync: ' + err.message); }
     }
 
-    // --- FUNCIÓN DE EMPAQUETADO BLINDADA Y ROBUSTA ---
+    // --- DESCARGA DIRECTA DE ARCHIVOS (SIN USAR JSZIP) ---
     async function guardarArchivosDeTorrent(torrent, detallesEl) {
-      if (torrent.files.length === 1) {
-        const file = torrent.files[0];
-        file.getBlobURL(function(err, url) {
-          if (err) return alert('Error al generar descarga: ' + err.message);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = file.name;
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
+      if (detallesEl) detallesEl.textContent = 'Guardando archivos descargados...';
+      
+      let index = 0;
+      for (const file of torrent.files) {
+        index++;
+        if (detallesEl) detallesEl.textContent = `Descargando archivo ${index} de ${torrent.files.length}: ${file.name}`;
+        
+        await new Promise((resolve) => {
+          file.getBlobURL((err, url) => {
+            if (!err && url) {
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = file.name;
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+            }
+            // Pausa breve para que el navegador procese cada descarga individual sin bloquearse
+            setTimeout(resolve, 400);
+          });
         });
-      } else {
-        if (typeof JSZip === 'undefined') {
-          alert('No se pudo cargar JSZip. Se descargarán los archivos uno por uno.');
-          torrent.files.forEach(file => {
-            file.getBlobURL((err, url) => {
-              if (!err) {
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = file.name;
-                a.click();
-              }
-            });
-          });
-          return;
-        }
-
-        if (detallesEl) detallesEl.textContent = 'Empaquetando carpeta en ZIP...';
-        const zip = new JSZip();
-
-        try {
-          for (const file of torrent.files) {
-            const blob = await new Promise((resolve, reject) => {
-              setTimeout(() => {
-                file.getBlob((err, b) => {
-                  if (err || !b) reject(err || new Error('Blob vacío para ' + file.name));
-                  else resolve(b);
-                });
-              }, 150);
-            });
-            zip.file(file.path, blob);
-          }
-
-          const zipBlob = await zip.generateAsync({ type: 'blob' });
-          const url = URL.createObjectURL(zipBlob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = (torrent.name || 'carpeta_pititorrent') + '.zip';
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          if (detallesEl) detallesEl.textContent = '100% • ¡Carpeta ZIP guardada!';
-        } catch (e) {
-          console.error('Error al empaquetar ZIP:', e);
-          if (detallesEl) detallesEl.textContent = 'Error en ZIP. Descargando archivos individuales...';
-          torrent.files.forEach(file => {
-            file.getBlobURL((err, url) => {
-              if (!err) {
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = file.name;
-                a.click();
-              }
-            });
-          });
-        }
       }
+
+      if (detallesEl) detallesEl.textContent = '100% • ¡Todos los archivos guardados con éxito!';
     }
 
     async function cargarCatalogo() {
@@ -1022,7 +978,7 @@
       let torrent = client.get(infoHash);
       if (torrent) {
         if (torrent.done || torrent.progress === 1) {
-          detalles.textContent = '¡Archivo ya descargado! Preparando guardado...';
+          detalles.textContent = '¡Descarga completada! Guardando archivos...';
           barra.style.width = '100%';
           guardarArchivosDeTorrent(torrent, detalles);
         } else {
@@ -1033,8 +989,8 @@
       }
 
       btn.disabled = true;
-      btn.textContent = 'Conectando a la red...';
-      detalles.textContent = 'Buscando fragmentos en la red P2P...';
+      btn.textContent = 'Conectando...';
+      detalles.textContent = 'Conectando con tu servidor P2P...';
 
       if (navigator.storage && navigator.storage.persist) {
         navigator.storage.persist().catch(() => {});
@@ -1064,8 +1020,8 @@
           clearInterval(interval);
           barra.style.width = '100%';
           btn.disabled = false;
-          btn.textContent = '¡Guardar en PC!';
-          detalles.textContent = '¡Listo para empaquetar y descargar!';
+          btn.textContent = '¡Guardado!';
+          detalles.textContent = '¡Descarga terminada con éxito!';
           
           guardarArchivosDeTorrent(torrent, detalles);
           
