@@ -3,40 +3,102 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Descarga Automática WebTorrent</title>
-  <!-- 1. URL completa de la librería WebTorrent -->
+  <title>Catálogo de Descargas P2P</title>
   <script src="https://jsdelivr.net"></script>
   <style>
     body {
       font-family: system-ui, -apple-system, sans-serif;
       background-color: #121212;
       color: #ffffff;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
+      margin: 0;
+      padding: 40px 20px;
+    }
+    header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+    header h1 {
+      margin: 0 0 10px 0;
+      font-size: 2rem;
+    }
+    header p {
+      color: #a0a0a0;
       margin: 0;
     }
-    .contenedor {
-      background-color: #1e1e1e;
-      padding: 30px;
-      border-radius: 12px;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
-      width: 100%;
-      max-width: 450px;
-      text-align: center;
+    /* Cuadrícula responsiva para las tarjetas */
+    .grid-archivos {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 24px;
+      max-width: 1100px;
+      margin: 0 auto;
     }
-    h2 {
-      margin-top: 0;
-      font-size: 1.4rem;
+    .tarjeta {
+      background-color: #1e1e1e;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.4);
+      display: flex;
+      flex-direction: column;
+      transition: transform 0.2s ease;
+    }
+    .tarjeta:hover {
+      transform: translateY(-4px);
+    }
+    .tarjeta img {
+      width: 100%;
+      height: 170px;
+      object-fit: cover;
+      background-color: #2a2a2a;
+    }
+    .contenido {
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      flex-grow: 1;
+    }
+    .contenido h3 {
+      margin: 0 0 8px 0;
+      font-size: 1.2rem;
+    }
+    .contenido p {
+      color: #b0b0b0;
+      font-size: 0.9rem;
+      margin: 0 0 20px 0;
+      flex-grow: 1;
+    }
+    .btn-descargar {
+      background-color: #00e676;
+      color: #121212;
+      border: none;
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 0.95rem;
+      font-weight: bold;
+      cursor: pointer;
+      width: 100%;
+      transition: background-color 0.2s;
+    }
+    .btn-descargar:hover:not(:disabled) {
+      background-color: #00c853;
+    }
+    .btn-descargar:disabled {
+      background-color: #333;
+      color: #888;
+      cursor: not-allowed;
+    }
+    /* Contenedor de progreso oculto hasta iniciar descarga */
+    .zona-progreso {
+      display: none;
+      margin-top: 15px;
     }
     .barra-fondo {
       background-color: #333;
-      border-radius: 8px;
-      height: 20px;
+      border-radius: 6px;
+      height: 12px;
       width: 100%;
       overflow: hidden;
-      margin: 20px 0;
+      margin-bottom: 8px;
     }
     .barra-progreso {
       background-color: #00e676;
@@ -44,86 +106,130 @@
       width: 0%;
       transition: width 0.3s ease;
     }
-    #estado {
-      color: #b0b0b0;
-      font-size: 0.95rem;
-      margin-bottom: 10px;
-    }
-    #detalles {
-      font-size: 0.85rem;
-      color: #888;
+    .detalles {
+      font-size: 0.8rem;
+      color: #a0a0a0;
+      text-align: center;
     }
   </style>
 </head>
 <body>
 
-  <div class="contenedor">
-    <h2>Descargando archivo P2P</h2>
-    <div id="estado">Conectando con pares (peers)...</div>
-    
-    <div class="barra-fondo">
-      <div class="barra-progreso" id="barra"></div>
-    </div>
-    
-    <div id="detalles">0% - 0 KB/s</div>
-  </div>
+  <header>
+    <h1>Descargas Directas P2P</h1>
+    <p>Selecciona un archivo para iniciar la transferencia mediante WebTorrent</p>
+  </header>
+
+  <main class="grid-archivos" id="catalogo"></main>
 
   <script>
     const client = new WebTorrent();
-    const infoHash = '851d38402bde0f0b0ed2229a7167e77e1b31eed4';
 
-    // 2. Trackers WebSocket corregidos
     const trackers = [
-      'wss://tracker.openwebtorrent.com',
+      'wss://://openwebtorrent.com',
       'wss://tracker.btorrent.xyz',
       'wss://tracker.webtorrent.dev'
     ];
 
-    const estadoEl = document.getElementById('estado');
-    const barraEl = document.getElementById('barra');
-    const detallesEl = document.getElementById('detalles');
+    // LISTA DE ARCHIVOS: Edita, añade o borra elementos aquí
+    const listaArchivos = [
+      {
+        titulo: 'Archivo pruebas',
+        descripcion: 'El archivo correspondiente al primer hash que configuraste.',
+        imagen: 'https://unsplash.com',
+        infoHash: '851d38402bde0f0b0ed2229a7167e77e1b31eed4'
+      },
+      {
+        titulo: 'Sintel (Película de Prueba)',
+        descripcion: 'Cortometraje libre oficial de Blender incluido como ejemplo funcional.',
+        imagen: 'https://unsplash.com',
+        infoHash: '08ada5a7a6183aae1e09d831df6748d566095a10'
+      },
+      {
+        titulo: 'Paquete de Recursos Extra',
+        descripcion: 'Reemplaza esta imagen y este hash por el de tu tercer archivo.',
+        imagen: 'https://unsplash.com',
+        infoHash: '851d38402bde0f0b0ed2229a7167e77e1b31eed4'
+      }
+    ];
 
-    const magnetURI = `magnet:?xt=urn:btih:${infoHash}&tr=${trackers.map(encodeURIComponent).join('&tr=')}`;
+    const catalogoEl = document.getElementById('catalogo');
 
-    client.add(magnetURI, function (torrent) {
-      estadoEl.textContent = `Descargando: ${torrent.name}`;
+    // Generar las tarjetas dinámicamente
+    listaArchivos.forEach((item, index) => {
+      const tarjeta = document.createElement('div');
+      tarjeta.className = 'tarjeta';
+      tarjeta.innerHTML = `
+        <img src="${item.imagen}" alt="${item.titulo}">
+        <div class="contenido">
+          <h3>${item.titulo}</h3>
+          <p>${item.descripcion}</p>
+          <button class="btn-descargar" id="btn-${index}">Descargar archivo</button>
+          
+          <div class="zona-progreso" id="progreso-box-${index}">
+            <div class="barra-fondo">
+              <div class="barra-progreso" id="barra-${index}"></div>
+            </div>
+            <div class="detalles" id="detalles-${index}">Conectando con pares...</div>
+          </div>
+        </div>
+      `;
+      catalogoEl.appendChild(tarjeta);
 
-      const intervalo = setInterval(() => {
-        const porcentaje = (torrent.progress * 100).toFixed(1);
-        const velocidad = (torrent.downloadSpeed / 1024 / 1024).toFixed(2);
-        
-        barraEl.style.width = `${porcentaje}%`;
-        detallesEl.textContent = `${porcentaje}% | Velocidad: ${velocidad} MB/s | Pares: ${torrent.numPeers}`;
-      }, 500);
+      // Asignar evento de descarga al botón de esta tarjeta
+      const btn = document.getElementById(`btn-${index}`);
+      btn.addEventListener('click', () => iniciarDescarga(item, index));
+    });
 
-      torrent.on('done', function () {
-        clearInterval(intervalo);
-        barraEl.style.width = '100%';
-        estadoEl.textContent = '¡Descarga completada! Guardando archivo...';
-        detallesEl.textContent = '100% Completado';
+    function iniciarDescarga(item, index) {
+      const btn = document.getElementById(`btn-${index}`);
+      const progresoBox = document.getElementById(`progreso-box-${index}`);
+      const barra = document.getElementById(`barra-${index}`);
+      const detalles = document.getElementById(`detalles-${index}`);
 
-        torrent.files.forEach(function (file) {
-          file.getBlobURL(function (err, url) {
-            if (err) {
-              estadoEl.textContent = 'Error al generar el archivo: ' + err.message;
-              return;
-            }
-            
-            const enlace = document.createElement('a');
-            enlace.href = url;
-            enlace.download = file.name;
-            document.body.appendChild(enlace);
-            enlace.click();
-            document.body.removeChild(enlace);
+      btn.disabled = true;
+      btn.textContent = 'Descargando...';
+      progresoBox.style.display = 'block';
 
-            estadoEl.textContent = `¡Listo! "${file.name}" se ha enviado a tu carpeta de Descargas.`;
+      const magnetURI = `magnet:?xt=urn:btih:${item.infoHash}&tr=${trackers.map(encodeURIComponent).join('&tr=')}`;
+
+      client.add(magnetURI, function (torrent) {
+        const intervalo = setInterval(() => {
+          const porcentaje = (torrent.progress * 100).toFixed(1);
+          const velocidad = (torrent.downloadSpeed / 1024 / 1024).toFixed(2);
+          
+          barra.style.width = `${porcentaje}%`;
+          detalles.textContent = `${porcentaje}% | ${velocidad} MB/s | Pares: ${torrent.numPeers}`;
+        }, 500);
+
+        torrent.on('done', function () {
+          clearInterval(intervalo);
+          barra.style.width = '100%';
+          btn.textContent = '¡Completado!';
+          detalles.textContent = 'Guardando en tu dispositivo...';
+
+          torrent.files.forEach(function (file) {
+            file.getBlobURL(function (err, url) {
+              if (err) {
+                detalles.textContent = 'Error: ' + err.message;
+                return;
+              }
+              const enlace = document.createElement('a');
+              enlace.href = url;
+              enlace.download = file.name;
+              document.body.appendChild(enlace);
+              enlace.click();
+              document.body.removeChild(enlace);
+
+              detalles.textContent = `¡Listo! "${file.name}" descargado.`;
+            });
           });
         });
       });
-    });
+    }
 
     client.on('error', function (err) {
-      estadoEl.textContent = 'Error de conexión: ' + err.message;
+      console.error('Error en el cliente WebTorrent:', err.message);
     });
   </script>
 
