@@ -55,7 +55,7 @@
     .banner-diagnostico p { margin: 0 0 8px 0; font-size: 0.9rem; color: #ffcdd2; line-height: 1.4; }
     .banner-diagnostico ul { margin: 8px 0 0 0; padding-left: 20px; font-size: 0.85rem; color: #ffebee; }
 
-    /* Banner de reanudación de sesión de servidor */
+    /* Banner de reanudación automática/manual si saliste y volviste siendo servidor */
     .banner-reanudar {
       max-width: 1100px;
       margin: 0 auto 22px auto;
@@ -321,7 +321,7 @@
 
   <!-- Banner de reanudación automática/manual si saliste y volviste siendo servidor -->
   <section class="banner-reanudar" id="banner-reanudar">
-    <p id="texto-banner-reanudar">☁️ Tenías una carpeta de Google Drive actuando como servidor antes de salir.</p>
+    <p id="texto-banner-reanudar">☁️ Tenías una carpeta de Google Drive actuando como servidor antes de salir[cite: 1].</p>
     <div class="banner-reanudar-acciones">
       <button type="button" class="btn-reanudar-ahora" id="btn-reanudar-drive-rapido">🔄 Reanudar Servidor Drive</button>
       <button type="button" class="btn-descartar-sesion" id="btn-olvidar-drive">Olvidar sesión</button>
@@ -357,7 +357,7 @@
       <div class="formulario-caja">
         <h3>💻 Compartir desde este dispositivo</h3>
         <div class="aviso-seed">
-          <strong>Persistencia automática:</strong> Tus archivos se guardan en la memoria del navegador (IndexedDB). Si cierras la pestaña y vuelves más tarde, se reanudarán automáticamente como servidor sin duplicarse en el catálogo.
+          <strong>Persistencia automática:</strong> Tus archivos se guardan en la memoria del navegador (IndexedDB). Si cierras la pestaña y vuelves más tarde, se reanudarán automáticamente como servidor sin duplicarse en el catálogo[cite: 1].
         </div>
         <form id="form-subir">
           <input type="file" id="input-archivos" multiple style="display: none;">
@@ -382,7 +382,7 @@
       <div class="formulario-caja">
         <h3>☁️ Conectar Carpeta de Google Drive (Modo Servidor)</h3>
         <div class="aviso-drive">
-          Conecta una carpeta de tu Google Drive para que esta pestaña actúe como <strong>servidor P2P automático</strong>. Si sales y vuelves a entrar, podrás reanudar la conexión con un clic para seguir sirviendo los mismos archivos.
+          Conecta una carpeta de tu Google Drive para que esta pestaña actúe como <strong>servidor P2P automático</strong>[cite: 1]. Si sales y vuelves a entrar, podrás reanudar la conexión con un clic para seguir sirviendo los mismos archivos[cite: 1].
         </div>
         <form id="form-drive">
           <input type="text" id="drive-client-id" placeholder="Google OAuth Client ID (ej. 123456-abc.apps.googleusercontent.com)" required>
@@ -730,7 +730,6 @@
         if (!item.archivos || item.archivos.length === 0) continue;
         if (client.get(item.infoHash)) continue;
 
-        // Reconstruir los objetos File con sus rutas relativas originales para que el infoHash sea idéntico
         const archivosReconstruidos = item.archivos.map((a) => {
           const f = new File([a.blob], a.name, { type: a.type, lastModified: a.lastModified || Date.now() });
           if (a.webkitRelativePath) {
@@ -885,7 +884,6 @@
       const totalBytes = copiaArchivos.reduce((acc, f) => acc + f.size, 0);
 
       client.seed(copiaArchivos, { name: nombreTorrent, announce: trackers }, async function(torrent) {
-        // Evitar duplicados en Supabase si el archivo ya existía con el mismo infoHash
         const { data: yaExiste } = await db.from('torrents').select('id').eq('info_hash', torrent.infoHash);
 
         if (!yaExiste || yaExiste.length === 0) {
@@ -905,7 +903,6 @@
           }
         }
 
-        // Guardar en IndexedDB para que al salir y volver se reanude automáticamente
         const archivosSerializables = copiaArchivos.map((f) => ({
           name: f.name,
           type: f.type,
@@ -959,7 +956,6 @@
       document.getElementById('drive-folder-url').value = folderIdGuardado;
     }
 
-    // Mostrar banner de reanudación si antes estaba conectado como servidor Drive
     if (driveActivoAntes && clientIdGuardado && folderIdGuardado) {
       const bannerReanudar = document.getElementById('banner-reanudar');
       bannerReanudar.style.display = 'flex';
@@ -1270,7 +1266,7 @@
 
     function iniciarDescarga(infoHash, id, titulo) {
       if (!client) {
-        alert('No se puede descargar.\n\nMotivo: ' + (causaBloqueo || 'El motor WebTorrent no está disponible.'));
+        alert('No se puede descargar.\n\nMotivo: ' + (causaBloqueo || 'El motor WebTorrent não está disponible.'));
         return;
       }
 
@@ -1345,7 +1341,6 @@
       });
     }
 
-    // Iniciar catálogo y reanudar semillas locales guardadas automáticamente al cargar la página
     cargarCatalogo();
     reanudarSemillasGuardadas();
   </script>
