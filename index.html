@@ -1012,20 +1012,38 @@
       const downEl = document.getElementById(`down-${id}`);
       const upEl = document.getElementById(`up-${id}`);
 
-      const existente = client.get(infoHash);
-      if (existente) {
-        zona.style.display = 'block';
-        if (existente.done) guardarArchivosDeTorrent(existente, detalles);
+      zona.style.display = 'block';
+
+      // 1. Comprobar si WebTorrent ya lo tiene cargado en memoria/sesión
+      let torrent = client.get(infoHash);
+
+      if (torrent) {
+        if (torrent.done || torrent.progress === 1) {
+          detalles.textContent = '¡Archivo ya descargado! Preparando guardado...';
+          barra.style.width = '100%';
+          guardarArchivosDeTorrent(torrent, detalles);
+        } else {
+          btn.disabled = true;
+          btn.textContent = 'Reanudando...';
+          detalles.textContent = `Retomando descarga (${Math.round(torrent.progress * 100)}%)...`;
+        }
         return;
       }
 
+      // 2. Si no está activo en memoria, lo añadimos buscando en el almacenamiento local (IndexedDB)
       btn.disabled = true;
-      btn.textContent = 'Buscando...';
-      zona.style.display = 'block';
+      btn.textContent = 'Buscando datos guardados...';
+
+      if (navigator.storage && navigator.storage.persist) {
+        navigator.storage.persist().catch(() => {});
+      }
 
       const magnet = `magnet:?xt=urn:btih:${infoHash}&tr=` + trackers.map(encodeURIComponent).join('&tr=');
-      client.add(magnet, (torrent) => {
-        btn.textContent = 'Descargando...';
+
+      client.add(magnet, (torrentRecuperado) => {
+        torrent = torrentRecuperado;
+        btn.textContent = 'Descargando / Verificando...';
+
         const interval = setInterval(() => {
           if (torrent.destroyed) return clearInterval(interval);
           const porc = Math.round(torrent.progress * 100);
@@ -1033,16 +1051,29 @@
           if (peersEl) peersEl.textContent = torrent.numPeers;
           if (downEl) downEl.textContent = formatearVelocidad(torrent.downloadSpeed);
           if (upEl) upEl.textContent = formatearVelocidad(torrent.uploadSpeed);
-          detalles.textContent = `${porc}% completado`;
+          
+          if (porc === 100) {
+            detalles.textContent = '100% • Verificado en caché';
+          } else {
+            detalles.textContent = `${porc}% completado (${formatearTamano(torrent.downloaded)} / ${formatearTamano(torrent.length)})`;
+          }
         }, 500);
 
         torrent.on('done', () => {
           clearInterval(interval);
           barra.style.width = '100%';
           btn.disabled = false;
-          btn.textContent = '¡Descargado!';
+          btn.textContent = '¡Guardar en PC!';
+          detalles.textContent = '¡Listo para empaquetar y descargar!';
+          
           guardarArchivosDeTorrent(torrent, detalles);
-          registrarSemillaEnPanel(torrent, { titulo: titulo || torrent.name, numArchivos: torrent.files.length, tamanoTotal: torrent.length, origen: 'Cliente (Seeding)' });
+          
+          registrarSemillaEnPanel(torrent, { 
+            titulo: titulo || torrent.name, 
+            numArchivos: torrent.files.length, 
+            tamanoTotal: torrent.length, 
+            origen: 'Cliente (Seeding)' 
+          });
         });
       });
     }
