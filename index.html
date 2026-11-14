@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PitiTorrent - Compartir Archivos P2P</title>
-  <script src="https://cdn.jsdelivr.net/npm/webtorrent@2.5.1/dist/webtorrent.min.js"></script>
+  <script src="https://unpkg.com/webtorrent@2.5.1/dist/webtorrent.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     body { font-family: system-ui, -apple-system, sans-serif; background-color: #121212; color: #fff; margin: 0; padding: 30px 20px; }
@@ -82,7 +82,7 @@
     document.getElementById('form-subir').addEventListener('submit', (e) => {
       e.preventDefault();
       if (!client) {
-        alert('Error: El navegador ha bloqueado la librería WebTorrent.');
+        alert('Error: No se pudo cargar WebTorrent. Prueba a desactivar el bloqueador de anuncios (Brave/uBlock) para esta web.');
         return;
       }
 
@@ -166,7 +166,7 @@
 
       box.style.display = 'block';
       if (!client) {
-        det.textContent = 'Error: Librería WebTorrent no disponible.';
+        det.textContent = 'Error: Librería WebTorrent bloqueada por el navegador.';
         return;
       }
 
