@@ -3,235 +3,214 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Catálogo de Descargas P2P</title>
+  <title>PitiTorrent - Compartir Archivos P2P</title>
+  <script src="https://jsdelivr.net"></script>
   <script src="https://jsdelivr.net"></script>
   <style>
-    body {
-      font-family: system-ui, -apple-system, sans-serif;
-      background-color: #121212;
-      color: #ffffff;
-      margin: 0;
-      padding: 40px 20px;
-    }
-    header {
-      text-align: center;
-      margin-bottom: 40px;
-    }
-    header h1 {
-      margin: 0 0 10px 0;
-      font-size: 2rem;
-    }
-    header p {
-      color: #a0a0a0;
-      margin: 0;
-    }
-    /* Cuadrícula responsiva para las tarjetas */
-    .grid-archivos {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 24px;
-      max-width: 1100px;
-      margin: 0 auto;
-    }
-    .tarjeta {
-      background-color: #1e1e1e;
-      border-radius: 12px;
-      overflow: hidden;
-      box-shadow: 0 8px 20px rgba(0,0,0,0.4);
-      display: flex;
-      flex-direction: column;
-      transition: transform 0.2s ease;
-    }
-    .tarjeta:hover {
-      transform: translateY(-4px);
-    }
-    .tarjeta img {
-      width: 100%;
-      height: 170px;
-      object-fit: cover;
-      background-color: #2a2a2a;
-    }
-    .contenido {
-      padding: 20px;
-      display: flex;
-      flex-direction: column;
-      flex-grow: 1;
-    }
-    .contenido h3 {
-      margin: 0 0 8px 0;
-      font-size: 1.2rem;
-    }
-    .contenido p {
-      color: #b0b0b0;
-      font-size: 0.9rem;
-      margin: 0 0 20px 0;
-      flex-grow: 1;
-    }
-    .btn-descargar {
-      background-color: #00e676;
-      color: #121212;
-      border: none;
-      border-radius: 8px;
-      padding: 12px;
-      font-size: 0.95rem;
-      font-weight: bold;
-      cursor: pointer;
-      width: 100%;
-      transition: background-color 0.2s;
-    }
-    .btn-descargar:hover:not(:disabled) {
-      background-color: #00c853;
-    }
-    .btn-descargar:disabled {
-      background-color: #333;
-      color: #888;
-      cursor: not-allowed;
-    }
-    /* Contenedor de progreso oculto hasta iniciar descarga */
-    .zona-progreso {
-      display: none;
-      margin-top: 15px;
-    }
-    .barra-fondo {
-      background-color: #333;
-      border-radius: 6px;
-      height: 12px;
-      width: 100%;
-      overflow: hidden;
-      margin-bottom: 8px;
-    }
-    .barra-progreso {
-      background-color: #00e676;
-      height: 100%;
-      width: 0%;
-      transition: width 0.3s ease;
-    }
-    .detalles {
-      font-size: 0.8rem;
-      color: #a0a0a0;
-      text-align: center;
-    }
+    body { font-family: system-ui, -apple-system, sans-serif; background-color: #121212; color: #fff; margin: 0; padding: 30px 20px; }
+    header { text-align: center; margin-bottom: 30px; }
+    .formulario-caja { background: #1e1e1e; max-width: 500px; margin: 0 auto 30px auto; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.4); }
+    .formulario-caja h3 { margin-top: 0; }
+    input[type="text"], input[type="url"], input[type="file"] { width: 100%; padding: 10px; margin-bottom: 12px; border-radius: 6px; border: 1px solid #333; background: #2a2a2a; color: #fff; box-sizing: border-box; }
+    .aviso-seed { background: #262216; border-left: 4px solid #ffb300; padding: 10px 14px; font-size: 0.85rem; color: #ffe082; margin-bottom: 15px; border-radius: 4px; }
+    .btn { background: #00e676; color: #121212; border: none; border-radius: 8px; padding: 12px; font-weight: bold; cursor: pointer; width: 100%; font-size: 0.95rem; }
+    .btn:hover:not(:disabled) { background: #00c853; }
+    .btn:disabled { background: #333; color: #888; cursor: not-allowed; }
+    .panel-semillas { max-width: 1100px; margin: 0 auto 30px auto; background: #18241e; border: 1px solid #00e67644; padding: 15px 20px; border-radius: 10px; display: none; }
+    .panel-semillas h4 { margin: 0 0 8px 0; color: #00e676; }
+    .grid-archivos { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; max-width: 1100px; margin: 0 auto; }
+    .tarjeta { background: #1e1e1e; border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 8px 20px rgba(0,0,0,0.4); }
+    .tarjeta img { width: 100%; height: 170px; object-fit: cover; background: #2a2a2a; }
+    .contenido { padding: 20px; display: flex; flex-direction: column; flex-grow: 1; }
+    .contenido h3 { margin: 0 0 8px 0; }
+    .contenido p { color: #b0b0b0; font-size: 0.9rem; margin: 0 0 20px 0; flex-grow: 1; }
+    .zona-progreso { display: none; margin-top: 15px; }
+    .barra-fondo { background: #333; border-radius: 6px; height: 12px; overflow: hidden; margin-bottom: 8px; }
+    .barra-progreso { background: #00e676; height: 100%; width: 0%; transition: width 0.3s; }
+    .detalles { font-size: 0.8rem; color: #a0a0a0; text-align: center; }
   </style>
 </head>
 <body>
 
   <header>
-    <h1>Descargas Directas P2P</h1>
-    <p>Selecciona un archivo para iniciar la transferencia mediante WebTorrent</p>
+    <h1>PitiTorrent P2P</h1>
+    <p>Sube cualquier archivo de tu dispositivo para convertirlo en torrent y compartirlo al instante</p>
   </header>
 
-  <main class="grid-archivos" id="catalogo"></main>
+  <section class="formulario-caja">
+    <h3>Compartir nuevo archivo</h3>
+    <div class="aviso-seed">
+      <strong>Importante:</strong> Mantén esta pestaña abierta mientras otros descargan tu archivo, ya que se envía directamente desde tu dispositivo.
+    </div>
+    <form id="form-subir">
+      <input type="file" id="archivo-local" required>
+      <input type="text" id="titulo" placeholder="Título del archivo" required>
+      <input type="text" id="descripcion" placeholder="Breve descripción">
+      <input type="url" id="imagen" placeholder="URL de imagen de portada (opcional)">
+      <button type="submit" class="btn" id="btn-publicar">Crear Torrent y Publicar</button>
+    </form>
+  </section>
+
+  <section class="panel-semillas" id="panel-semillas">
+    <h4>Compartiendo actualmente desde tu navegador (No cierres esta pestaña):</h4>
+    <div id="lista-semillas" style="font-size: 0.9rem; color: #ccc;"></div>
+  </section>
+
+  <main class="grid-archivos" id="catalogo">Cargando catálogo...</main>
 
   <script>
-    const client = new WebTorrent();
+    const SUPABASE_URL = 'https://supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_WzkcsriEcH71Ym0QMHt0gA_Utm_oKgu';
+    const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    let client = null;
+    try {
+      if (typeof WebTorrent !== 'undefined') {
+        client = new WebTorrent();
+      }
+    } catch (e) {
+      console.error('Error iniciando WebTorrent:', e);
+    }
 
     const trackers = [
       'wss://://openwebtorrent.com',
       'wss://tracker.btorrent.xyz',
       'wss://tracker.webtorrent.dev'
     ];
-
-    // LISTA DE ARCHIVOS: Edita, añade o borra elementos aquí
-    const listaArchivos = [
-      {
-        titulo: 'Archivo pruebas',
-        descripcion: 'El archivo correspondiente al primer hash que configuraste.',
-        imagen: 'https://unsplash.com',
-        infoHash: '851d38402bde0f0b0ed2229a7167e77e1b31eed4'
-      },
-      {
-        titulo: 'Sintel (Película de Prueba)',
-        descripcion: 'Cortometraje libre oficial de Blender incluido como ejemplo funcional.',
-        imagen: 'https://unsplash.com',
-        infoHash: '08ada5a7a6183aae1e09d831df6748d566095a10'
-      },
-      {
-        titulo: 'Paquete de Recursos Extra',
-        descripcion: 'Reemplaza esta imagen y este hash por el de tu tercer archivo.',
-        imagen: 'https://unsplash.com',
-        infoHash: '851d38402bde0f0b0ed2229a7167e77e1b31eed4'
-      }
-    ];
-
     const catalogoEl = document.getElementById('catalogo');
 
-    // Generar las tarjetas dinámicamente
-    listaArchivos.forEach((item, index) => {
-      const tarjeta = document.createElement('div');
-      tarjeta.className = 'tarjeta';
-      tarjeta.innerHTML = `
-        <img src="${item.imagen}" alt="${item.titulo}">
-        <div class="contenido">
-          <h3>${item.titulo}</h3>
-          <p>${item.descripcion}</p>
-          <button class="btn-descargar" id="btn-${index}">Descargar archivo</button>
-          
-          <div class="zona-progreso" id="progreso-box-${index}">
-            <div class="barra-fondo">
-              <div class="barra-progreso" id="barra-${index}"></div>
-            </div>
-            <div class="detalles" id="detalles-${index}">Conectando con pares...</div>
-          </div>
-        </div>
-      `;
-      catalogoEl.appendChild(tarjeta);
+    document.getElementById('form-subir').addEventListener('submit', (e) => {
+      e.preventDefault();
+      if (!client) {
+        alert('Error: El navegador ha bloqueado la librería WebTorrent.');
+        return;
+      }
 
-      // Asignar evento de descarga al botón de esta tarjeta
-      const btn = document.getElementById(`btn-${index}`);
-      btn.addEventListener('click', () => iniciarDescarga(item, index));
+      const inputArchivo = document.getElementById('archivo-local');
+      if (!inputArchivo.files.length) return;
+
+      const archivo = inputArchivo.files[0];
+      const btn = document.getElementById('btn-publicar');
+      btn.disabled = true;
+      btn.textContent = 'Generando Torrent P2P...';
+
+      client.seed(archivo, { announce: trackers }, async (torrent) => {
+        const nuevo = {
+          titulo: document.getElementById('titulo').value,
+          descripcion: document.getElementById('descripcion').value,
+          imagen: document.getElementById('imagen').value,
+          info_hash: torrent.infoHash
+        };
+
+        const { error } = await db.from('torrents').insert([nuevo]);
+        
+        btn.disabled = false;
+        btn.textContent = 'Crear Torrent y Publicar';
+
+        if (error) {
+          alert('Error al guardar en base de datos: ' + error.message);
+          return;
+        }
+
+        document.getElementById('panel-semillas').style.display = 'block';
+        const itemSeed = document.createElement('div');
+        itemSeed.style.marginTop = '6px';
+        itemSeed.textContent = `• ${archivo.name} (${(archivo.size / 1024 / 1024).toFixed(2)} MB) - Hash: ${torrent.infoHash}`;
+        document.getElementById('lista-semillas').appendChild(itemSeed);
+
+        e.target.reset();
+        cargarArchivos();
+      });
     });
 
-    function iniciarDescarga(item, index) {
-      const btn = document.getElementById(`btn-${index}`);
-      const progresoBox = document.getElementById(`progreso-box-${index}`);
-      const barra = document.getElementById(`barra-${index}`);
-      const detalles = document.getElementById(`detalles-${index}`);
+    async function cargarArchivos() {
+      const { data, error } = await db.from('torrents').select('*').order('created_at', { ascending: false });
+      catalogoEl.innerHTML = '';
+
+      if (error) {
+        catalogoEl.innerHTML = `<p style="text-align:center;grid-column:1/-1;color:#ff5252;">Error conectando con Supabase: ${error.message}</p>`;
+        return;
+      }
+
+      if (!data || data.length === 0) {
+        catalogoEl.innerHTML = '<p style="text-align:center;grid-column:1/-1;color:#888;">No hay archivos publicados todavía. ¡Sube el primero arriba!</p>';
+        return;
+      }
+
+      data.forEach((item) => {
+        const imgUrl = item.imagen || 'https://unsplash.com';
+        const tarjeta = document.createElement('div');
+        tarjeta.className = 'tarjeta';
+        tarjeta.innerHTML = `
+          <img src="${imgUrl}" alt="${item.titulo}">
+          <div class="contenido">
+            <h3>${item.titulo}</h3>
+            <p>${item.descripcion || 'Sin descripción'}</p>
+            <button class="btn" id="btn-${item.id}">Descargar archivo</button>
+            <div class="zona-progreso" id="box-${item.id}">
+              <div class="barra-fondo"><div class="barra-progreso" id="barra-${item.id}"></div></div>
+              <div class="detalles" id="det-${item.id}">Conectando con pares...</div>
+            </div>
+          </div>
+        `;
+        catalogoEl.appendChild(tarjeta);
+        document.getElementById(`btn-${item.id}`).addEventListener('click', () => descargar(item));
+      });
+    }
+
+    function descargar(item) {
+      const btn = document.getElementById(`btn-${item.id}`);
+      const box = document.getElementById(`box-${item.id}`);
+      const barra = document.getElementById(`barra-${item.id}`);
+      const det = document.getElementById(`det-${item.id}`);
+
+      box.style.display = 'block';
+      if (!client) {
+        det.textContent = 'Error: Librería WebTorrent no disponible.';
+        return;
+      }
 
       btn.disabled = true;
       btn.textContent = 'Descargando...';
-      progresoBox.style.display = 'block';
 
-      const magnetURI = `magnet:?xt=urn:btih:${item.infoHash}&tr=${trackers.map(encodeURIComponent).join('&tr=')}`;
+      const existente = client.get(item.info_hash);
+      if (existente) {
+        det.textContent = 'Ya estás compartiendo este archivo en esta pestaña.';
+        btn.textContent = 'Compartiendo (Activo)';
+        return;
+      }
 
-      client.add(magnetURI, function (torrent) {
+      const magnetURI = `magnet:?xt=urn:btih:${item.info_hash}&tr=${trackers.map(encodeURIComponent).join('&tr=')}`;
+
+      client.add(magnetURI, (torrent) => {
         const intervalo = setInterval(() => {
-          const porcentaje = (torrent.progress * 100).toFixed(1);
-          const velocidad = (torrent.downloadSpeed / 1024 / 1024).toFixed(2);
-          
-          barra.style.width = `${porcentaje}%`;
-          detalles.textContent = `${porcentaje}% | ${velocidad} MB/s | Pares: ${torrent.numPeers}`;
+          const pct = (torrent.progress * 100).toFixed(1);
+          const vel = (torrent.downloadSpeed / 1024 / 1024).toFixed(2);
+          barra.style.width = `${pct}%`;
+          det.textContent = `${pct}% | ${vel} MB/s | Pares: ${torrent.numPeers}`;
         }, 500);
 
-        torrent.on('done', function () {
+        torrent.on('done', () => {
           clearInterval(intervalo);
           barra.style.width = '100%';
           btn.textContent = '¡Completado!';
-          detalles.textContent = 'Guardando en tu dispositivo...';
-
-          torrent.files.forEach(function (file) {
-            file.getBlobURL(function (err, url) {
-              if (err) {
-                detalles.textContent = 'Error: ' + err.message;
-                return;
-              }
-              const enlace = document.createElement('a');
-              enlace.href = url;
-              enlace.download = file.name;
-              document.body.appendChild(enlace);
-              enlace.click();
-              document.body.removeChild(enlace);
-
-              detalles.textContent = `¡Listo! "${file.name}" descargado.`;
+          torrent.files.forEach((file) => {
+            file.getBlobURL((err, url) => {
+              if (err) { det.textContent = 'Error: ' + err.message; return; }
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = file.name;
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              det.textContent = `¡Listo! "${file.name}" descargado.`;
             });
           });
         });
       });
     }
 
-    client.on('error', function (err) {
-      console.error('Error en el cliente WebTorrent:', err.message);
-    });
+    cargarArchivos();
   </script>
-
 </body>
 </html>
