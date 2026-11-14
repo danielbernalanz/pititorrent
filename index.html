@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PitiTorrent - Compartir Archivos P2P</title>
-  <script src="https://cdn.jsdelivr.net/npm/webtorrent@1.9.7/webtorrent.min.js" onerror="window.falloCargaWebTorrent = true;"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/webtorrent/1.9.7/webtorrent.min.js" onerror="window.falloCargaWebTorrent = true;"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     body { font-family: system-ui, -apple-system, sans-serif; background-color: #121212; color: #fff; margin: 0; padding: 30px 20px; }
@@ -71,7 +71,14 @@
   <script>
     const SUPABASE_URL = 'https://nkcfnbygggrekgnbbjrx.supabase.co';
     const SUPABASE_KEY = 'sb_publishable_WzkcsriEcH71Ym0QMHt0gA_Utm_oKgu';
-    const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    const catalogoEl = document.getElementById('catalogo');
+
+    let db = null;
+    if (typeof supabase !== 'undefined') {
+      db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    } else {
+      catalogoEl.innerHTML = '<p style="color:#ff8a80;">No se pudo cargar la librería de base de datos (Supabase). Revisa tu conexión o bloqueador.</p>';
+    }
 
     let client = null;
     let causaBloqueo = '';
@@ -82,7 +89,8 @@
       const lista = document.getElementById('detalles-diagnostico');
       const problemas = [];
 
-      if (window.falloCargaWebTorrent || typeof WebTorrent === 'undefined') {
+      const webTorrentOk = !window.falloCargaWebTorrent && typeof WebTorrent !== 'undefined';
+      if (!webTorrentOk) {
         problemas.push('<strong>Bloqueador de scripts/anuncios detectado (uBlock Origin, AdBlock, Privacy Badger o Escudos de Brave):</strong> Ha impedido cargar el motor <code>webtorrent.min.js</code>.');
       }
 
@@ -91,14 +99,14 @@
         problemas.push('<strong>Extensión anti-fugas WebRTC detectada (WebRTC Control / uBlock WebRTC):</strong> Ha desactivado <code>RTCPeerConnection</code>, necesario para conectar pares P2P.');
       }
 
-      if (navigator.brave && typeof navigator.brave.isBrave === 'function') {
-        problemas.push('<strong>Navegador Brave detectado:</strong> Los Escudos de Brave bloquean por defecto las conexiones WebTorrent y trackers.');
+      if ((!webTorrentOk || !rtcDisponible) && navigator.brave && typeof navigator.brave.isBrave === 'function') {
+        problemas.push('<strong>Navegador Brave detectado:</strong> Los Escudos de Brave pueden estar bloqueando las conexiones WebTorrent y trackers.');
       }
 
       if (problemas.length > 0) {
         banner.style.display = 'block';
         msg.innerHTML = 'Tu navegador o una extensión está bloqueando la tecnología P2P. Para usar esta web, desactiva temporalmente el bloqueo en este sitio:';
-        lista.innerHTML = problemas.map(p => `<li>${p}</li>`).join('');
+        lista.innerHTML = problemas.map(function(p) { return '<li>' + p + '</li>'; }).join('');
         causaBloqueo = problemas[0].replace(/<[^>]*>?/gm, '');
       }
     }
@@ -120,24 +128,28 @@
       'wss://tracker.btorrent.xyz',
       'wss://tracker.webtorrent.dev'
     ];
-    const catalogoEl = document.getElementById('catalogo');
 
-    document.getElementById('form-subir').addEventListener('submit', (e) => {
+    document.getElementById('form-subir').addEventListener('submit', function(e) {
       e.preventDefault();
       if (!client) {
         alert('No se puede crear el torrent.\n\nMotivo: ' + (causaBloqueo || 'El motor WebTorrent fue bloqueado por una extensión.'));
         return;
       }
 
+      if (!db) {
+        alert('Error: No hay conexión con la base de datos.');
+        return;
+      }
+
       const inputArchivo = document.getElementById('archivo-local');
-      if (!inputArchivo.files.length) return;
+      if (!inputArchivo.files || inputArchivo.files.length === 0) return;
 
       const archivo = inputArchivo.files[0];
       const btn = document.getElementById('btn-publicar');
       btn.disabled = true;
       btn.textContent = 'Generando Torrent P2P...';
 
-      client.seed(archivo, { announce: trackers }, async (torrent) => {
+      client.seed(archivo, { announce: trackers }, async function(torrent) {
         const nuevo = {
           titulo: document.getElementById('titulo').value,
           descripcion: document.getElementById('descripcion').value,
@@ -145,20 +157,20 @@
           info_hash: torrent.infoHash
         };
 
-        const { error } = await db.from('torrents').insert([nuevo]);
+        const res = await db.from('torrents').insert([nuevo]);
         
         btn.disabled = false;
         btn.textContent = 'Crear Torrent y Publicar';
 
-        if (error) {
-          alert('Error al guardar en base de datos: ' + error.message);
+        if (res.error) {
+          alert('Error al guardar en base de datos: ' + res.error.message);
           return;
         }
 
         document.getElementById('panel-semillas').style.display = 'block';
         const item = document.createElement('div');
         item.style.marginBottom = '6px';
-        item.innerHTML = `🟢 <strong>${nuevo.titulo}</strong> (Hash: <code>${torrent.infoHash}</code>)`;
+        item.innerHTML = '🟢 <strong>' + nuevo.titulo + '</strong> (Hash: <code>' + torrent.infoHash + '</code>)';
         document.getElementById('lista-semillas').appendChild(item);
 
         e.target.reset();
@@ -167,48 +179,54 @@
     });
 
     async function cargarCatalogo() {
-      const { data, error } = await db
-        .from('torrents')
-        .select('*')
-        .order('id', { ascending: false });
+      if (!db) return;
 
-      if (error) {
-        catalogoEl.innerHTML = `<p style="color:#ff8a80;">Error al cargar catálogo: ${error.message}</p>`;
-        return;
-      }
+      try {
+        const res = await db
+          .from('torrents')
+          .select('*')
+          .order('id', { ascending: false });
 
-      if (!data || data.length === 0) {
-        catalogoEl.innerHTML = '<p style="color:#aaa;">Aún no hay archivos publicados. ¡Sé el primero en compartir uno!</p>';
-        return;
-      }
+        if (res.error) {
+          catalogoEl.innerHTML = '<p style="color:#ff8a80;">Error al cargar catálogo: ' + res.error.message + '</p>';
+          return;
+        }
 
-      catalogoEl.innerHTML = '';
-      data.forEach((item) => {
-        const tarjeta = document.createElement('article');
-        tarjeta.className = 'tarjeta';
-        const imgUrl = item.imagen || 'https://placehold.co/600x400/1e1e1e/00e676?text=PitiTorrent+P2P';
+        const data = res.data;
+        if (!data || data.length === 0) {
+          catalogoEl.innerHTML = '<p style="color:#aaa;">Aún no hay archivos publicados. ¡Sé el primero en compartir uno!</p>';
+          return;
+        }
 
-        tarjeta.innerHTML = `
-          <img src="${imgUrl}" alt="${item.titulo}" onerror="this.src='https://placehold.co/600x400/1e1e1e/00e676?text=PitiTorrent+P2P'">
-          <div class="contenido">
-            <h3>${item.titulo}</h3>
-            <p>${item.descripcion || 'Sin descripción'}</p>
-            <button class="btn" id="btn-${item.id}">Descargar P2P</button>
-            <div class="zona-progreso" id="prog-zona-${item.id}">
-              <div class="barra-fondo">
-                <div class="barra-progreso" id="barra-${item.id}"></div>
-              </div>
-              <div class="detalles" id="detalles-${item.id}">Conectando con pares...</div>
-            </div>
-          </div>
-        `;
+        catalogoEl.innerHTML = '';
+        data.forEach(function(item) {
+          const tarjeta = document.createElement('article');
+          tarjeta.className = 'tarjeta';
+          const imgUrl = item.imagen || 'https://placehold.co/600x400/1e1e1e/00e676?text=PitiTorrent+P2P';
 
-        catalogoEl.appendChild(tarjeta);
+          tarjeta.innerHTML =
+            '<img src="' + imgUrl + '" alt="' + item.titulo + '" onerror="this.src=\'https://placehold.co/600x400/1e1e1e/00e676?text=PitiTorrent+P2P\'">' +
+            '<div class="contenido">' +
+              '<h3>' + item.titulo + '</h3>' +
+              '<p>' + (item.descripcion || 'Sin descripción') + '</p>' +
+              '<button class="btn" id="btn-' + item.id + '">Descargar P2P</button>' +
+              '<div class="zona-progreso" id="prog-zona-' + item.id + '">' +
+                '<div class="barra-fondo">' +
+                  '<div class="barra-progreso" id="barra-' + item.id + '"></div>' +
+                '</div>' +
+                '<div class="detalles" id="detalles-' + item.id + '">Conectando con pares...</div>' +
+              '</div>' +
+            '</div>';
 
-        document.getElementById(`btn-${item.id}`).addEventListener('click', () => {
-          iniciarDescarga(item.info_hash, item.id);
+          catalogoEl.appendChild(tarjeta);
+
+          document.getElementById('btn-' + item.id).addEventListener('click', function() {
+            iniciarDescarga(item.info_hash, item.id);
+          });
         });
-      });
+      } catch (err) {
+        catalogoEl.innerHTML = '<p style="color:#ff8a80;">Error inesperado al conectar con Supabase: ' + err.message + '</p>';
+      }
     }
 
     function iniciarDescarga(infoHash, id) {
@@ -217,35 +235,35 @@
         return;
       }
 
-      const btn = document.getElementById(`btn-${id}`);
-      const zona = document.getElementById(`prog-zona-${id}`);
-      const barra = document.getElementById(`barra-${id}`);
-      const detalles = document.getElementById(`detalles-${id}`);
+      const btn = document.getElementById('btn-' + id);
+      const zona = document.getElementById('prog-zona-' + id);
+      const barra = document.getElementById('barra-' + id);
+      const detalles = document.getElementById('detalles-' + id);
 
       btn.disabled = true;
       btn.textContent = 'Buscando semillas...';
       zona.style.display = 'block';
 
-      const magnet = `magnet:?xt=urn:btih:${infoHash}&tr=${trackers.map(encodeURIComponent).join('&tr=')}`;
+      const magnet = 'magnet:?xt=urn:btih:' + infoHash + '&tr=' + trackers.map(encodeURIComponent).join('&tr=');
 
-      client.add(magnet, (torrent) => {
+      client.add(magnet, function(torrent) {
         btn.textContent = 'Descargando...';
 
-        const intervalo = setInterval(() => {
+        const intervalo = setInterval(function() {
           const porcentaje = Math.round(torrent.progress * 100);
           barra.style.width = porcentaje + '%';
           const velocidad = (torrent.downloadSpeed / 1024 / 1024).toFixed(2);
-          detalles.textContent = `${porcentaje}% • ${velocidad} MB/s • ${torrent.numPeers} pares`;
+          detalles.textContent = porcentaje + '% • ' + velocidad + ' MB/s • ' + torrent.numPeers + ' pares';
         }, 500);
 
-        torrent.on('done', () => {
+        torrent.on('done', function() {
           clearInterval(intervalo);
           barra.style.width = '100%';
           btn.textContent = '¡Descargado!';
           detalles.textContent = '100% • Guardando archivo...';
 
-          torrent.files.forEach((file) => {
-            file.getBlobURL((err, url) => {
+          torrent.files.forEach(function(file) {
+            file.getBlobURL(function(err, url) {
               if (err) return alert('Error al generar descarga: ' + err.message);
               const a = document.createElement('a');
               a.href = url;
