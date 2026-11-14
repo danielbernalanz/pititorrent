@@ -307,6 +307,9 @@
     <button type="button" class="btn-admin" id="btn-admin">🔒 Admin</button>
     <h1>PitiTorrent P2P</h1>
     <p>Intercambio directo de archivos, carpetas y nube entre navegadores</p>
+    <div style="font-size: 0.75rem; color: #777; margin-top: 6px;">
+      Versión: <span style="color: #00e676; font-family: monospace;">v2.4.2</span> • Caché Inteligente Activa
+    </div>
   </header>
 
   <!-- Selector de apartado -->
@@ -1014,25 +1017,23 @@
 
       zona.style.display = 'block';
 
-      // 1. Comprobar si WebTorrent ya lo tiene cargado en memoria/sesión
+      // 1. Si ya está activo en memoria, gestionarlo directamente
       let torrent = client.get(infoHash);
-
       if (torrent) {
         if (torrent.done || torrent.progress === 1) {
-          detalles.textContent = '¡Archivo ya descargado! Preparando guardado...';
+          detalles.textContent = '¡Archivo ya descargado en memoria! Guardando...';
           barra.style.width = '100%';
           guardarArchivosDeTorrent(torrent, detalles);
         } else {
           btn.disabled = true;
-          btn.textContent = 'Reanudando...';
-          detalles.textContent = `Retomando descarga (${Math.round(torrent.progress * 100)}%)...`;
+          btn.textContent = 'Descargando...';
         }
         return;
       }
 
-      // 2. Si no está activo en memoria, lo añadimos buscando en el almacenamiento local (IndexedDB)
       btn.disabled = true;
-      btn.textContent = 'Buscando datos guardados...';
+      btn.textContent = 'Comprobando caché local...';
+      detalles.textContent = 'Buscando fragmentos previos en el navegador...';
 
       if (navigator.storage && navigator.storage.persist) {
         navigator.storage.persist().catch(() => {});
@@ -1042,7 +1043,14 @@
 
       client.add(magnet, (torrentRecuperado) => {
         torrent = torrentRecuperado;
-        btn.textContent = 'Descargando / Verificando...';
+
+        setTimeout(() => {
+          if (torrent.progress > 0 && torrent.progress < 1) {
+            detalles.textContent = `¡Caché encontrada! Retomando en ${Math.round(torrent.progress * 100)}%`;
+          } else if (torrent.progress === 1) {
+            detalles.textContent = '¡Archivo completo encontrado en caché!';
+          }
+        }, 800);
 
         const interval = setInterval(() => {
           if (torrent.destroyed) return clearInterval(interval);
@@ -1053,8 +1061,8 @@
           if (upEl) upEl.textContent = formatearVelocidad(torrent.uploadSpeed);
           
           if (porc === 100) {
-            detalles.textContent = '100% • Verificado en caché';
-          } else {
+            detalles.textContent = '100% • Descarga completa';
+          } else if (torrent.progress > 0) {
             detalles.textContent = `${porc}% completado (${formatearTamano(torrent.downloaded)} / ${formatearTamano(torrent.length)})`;
           }
         }, 500);
