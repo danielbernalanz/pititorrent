@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Descarga Automática WebTorrent</title>
+  <script src="https://jsdelivr.net"></script>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background-color: #121212;
+      color: #ffffff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+    .contenedor {
+      background-color: #1e1e1e;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+      width: 100%;
+      max-width: 450px;
+      text-align: center;
+    }
+    h2 {
+      margin-top: 0;
+      font-size: 1.4rem;
+    }
+    .barra-fondo {
+      background-color: #333;
+      border-radius: 8px;
+      height: 20px;
+      width: 100%;
+      overflow: hidden;
+      margin: 20px 0;
+    }
+    .barra-progreso {
+      background-color: #00e676;
+      height: 100%;
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+    #estado {
+      color: #b0b0b0;
+      font-size: 0.95rem;
+      margin-bottom: 10px;
+    }
+    #detalles {
+      font-size: 0.85rem;
+      color: #888;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="contenedor">
+    <h2>Descargando archivo P2P</h2>
+    <div id="estado">Conectando con pares (peers)...</div>
+    
+    <div class="barra-fondo">
+      <div class="barra-progreso" id="barra"></div>
+    </div>
+    
+    <div id="detalles">0% - 0 KB/s</div>
+  </div>
+
+  <script>
+    const client = new WebTorrent();
+    const infoHash = '851d38402bde0f0b0ed2229a7167e77e1b31eed4';
+
+    // Trackers WebSocket públicos necesarios para encontrar peers en el navegador
+    const trackers = [
+      'wss://://openwebtorrent.com',
+      'wss://tracker.btorrent.xyz',
+      'wss://tracker.fastcast.nz',
+      'wss://tracker.webtorrent.dev'
+    ];
+
+    const estadoEl = document.getElementById('estado');
+    const barraEl = document.getElementById('barra');
+    const detallesEl = document.getElementById('detalles');
+
+    // Construimos el enlace magnet con el hash proporcionado
+    const magnetURI = `magnet:?xt=urn:btih:${infoHash}&tr=${trackers.map(encodeURIComponent).join('&tr=')}`;
+
+    client.add(magnetURI, function (torrent) {
+      estadoEl.textContent = `Descargando: ${torrent.name}`;
+
+      // Actualizar barra de progreso cada medio segundo
+      const intervalo = setInterval(() => {
+        const porcentaje = (torrent.progress * 100).toFixed(1);
+        const velocidad = (torrent.downloadSpeed / 1024 / 1024).toFixed(2);
+        
+        barraEl.style.width = `${porcentaje}%`;
+        detallesEl.textContent = `${porcentaje}% | Velocidad: ${velocidad} MB/s | Pares: ${torrent.numPeers}`;
+      }, 500);
+
+      // Cuando la descarga finaliza por completo
+      torrent.on('done', function () {
+        clearInterval(intervalo);
+        barraEl.style.width = '100%';
+        estadoEl.textContent = '¡Descarga completada! Guardando archivo...';
+        detallesEl.textContent = '100% Completado';
+
+        // Recorrer todos los archivos del torrent y forzar su descarga
+        torrent.files.forEach(function (file) {
+          file.getBlobURL(function (err, url) {
+            if (err) {
+              estadoEl.textContent = 'Error al generar el archivo: ' + err.message;
+              return;
+            }
+            
+            // Crear un enlace invisible y hacer clic automático para enviarlo a Descargas
+            const enlace = document.createElement('a');
+            enlace.href = url;
+            enlace.download = file.name;
+            document.body.appendChild(enlace);
+            enlace.click();
+            document.body.removeChild(enlace);
+
+            estadoEl.textContent = `¡Listo! "${file.name}" se ha enviado a tu carpeta de Descargas.`;
+          });
+        });
+      });
+    });
+
+    client.on('error', function (err) {
+      estadoEl.textContent = 'Error de conexión: ' + err.message;
+    });
+  </script>
+
+</body>
+</html>
