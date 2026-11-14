@@ -308,7 +308,7 @@
     <h1>PitiTorrent P2P</h1>
     <p>Intercambio directo de archivos, carpetas y nube entre navegadores</p>
     <div style="font-size: 0.75rem; color: #777; margin-top: 6px;">
-      Versión: <span style="color: #00e676; font-family: monospace;">v2.4.2</span> • Caché Inteligente Activa
+      Versión: <span style="color: #00e676; font-family: monospace;">v2.4.3</span> • Empaquetado Robusto Activo
     </div>
   </header>
 
@@ -345,7 +345,7 @@
     <div id="lista-semillas"></div>
   </section>
 
-  <!-- APARTADO 1: DESCARGAR / CATÁLOGO -->
+  <!-- APARTADO 1: DESCARGAR / CATÁLOGOS -->
   <section id="vista-descargar" class="vista-seccion activa">
     <div class="cabecera-catalogo">
       <h2>Archivos y carpetas disponibles</h2>
@@ -608,11 +608,11 @@
       }
     } catch (e) {}
 
-    // Trackers estables y limpios para evitar errores de WebSockets
+    // Trackers estables y limpios para evitar errores
     const trackers = [
       'wss://tracker.openwebtorrent.com',
       'wss://tracker.webtorrent.dev',
-      'wss://tracker.btorrent.xyz'
+      'wss://tracker.files.fm:7073/announce'
     ];
 
     const semillasActivas = new Map();
@@ -899,7 +899,7 @@
       } catch (err) { logDrive('Error sync: ' + err.message); }
     }
 
-    // --- CATÁLOGOS Y DESCARGAS BLINDADAS ---
+    // --- FUNCIÓN DE EMPAQUETADO BLINDADA Y ROBUSTA ---
     async function guardarArchivosDeTorrent(torrent, detallesEl) {
       if (torrent.files.length === 1) {
         const file = torrent.files[0];
@@ -934,10 +934,12 @@
         try {
           for (const file of torrent.files) {
             const blob = await new Promise((resolve, reject) => {
-              file.getBlob((err, b) => {
-                if (err || !b) reject(err || new Error('Blob vacío para ' + file.name));
-                else resolve(b);
-              });
+              setTimeout(() => {
+                file.getBlob((err, b) => {
+                  if (err || !b) reject(err || new Error('Blob vacío para ' + file.name));
+                  else resolve(b);
+                });
+              }, 150);
             });
             zip.file(file.path, blob);
           }
@@ -950,10 +952,10 @@
           document.body.appendChild(a);
           a.click();
           document.body.removeChild(a);
-          if (detallesEl) detallesEl.textContent = '100% • Carpeta ZIP guardada';
+          if (detallesEl) detallesEl.textContent = '100% • ¡Carpeta ZIP guardada!';
         } catch (e) {
           console.error('Error al empaquetar ZIP:', e);
-          if (detallesEl) detallesEl.textContent = 'Error al crear el ZIP. Reintentando descarga individual...';
+          if (detallesEl) detallesEl.textContent = 'Error en ZIP. Descargando archivos individuales...';
           torrent.files.forEach(file => {
             file.getBlobURL((err, url) => {
               if (!err) {
@@ -1017,11 +1019,10 @@
 
       zona.style.display = 'block';
 
-      // 1. Si ya está activo en memoria, gestionarlo directamente
       let torrent = client.get(infoHash);
       if (torrent) {
         if (torrent.done || torrent.progress === 1) {
-          detalles.textContent = '¡Archivo ya descargado en memoria! Guardando...';
+          detalles.textContent = '¡Archivo ya descargado! Preparando guardado...';
           barra.style.width = '100%';
           guardarArchivosDeTorrent(torrent, detalles);
         } else {
@@ -1032,8 +1033,8 @@
       }
 
       btn.disabled = true;
-      btn.textContent = 'Comprobando caché local...';
-      detalles.textContent = 'Buscando fragmentos previos en el navegador...';
+      btn.textContent = 'Conectando a la red...';
+      detalles.textContent = 'Buscando fragmentos en la red P2P...';
 
       if (navigator.storage && navigator.storage.persist) {
         navigator.storage.persist().catch(() => {});
@@ -1043,14 +1044,6 @@
 
       client.add(magnet, (torrentRecuperado) => {
         torrent = torrentRecuperado;
-
-        setTimeout(() => {
-          if (torrent.progress > 0 && torrent.progress < 1) {
-            detalles.textContent = `¡Caché encontrada! Retomando en ${Math.round(torrent.progress * 100)}%`;
-          } else if (torrent.progress === 1) {
-            detalles.textContent = '¡Archivo completo encontrado en caché!';
-          }
-        }, 800);
 
         const interval = setInterval(() => {
           if (torrent.destroyed) return clearInterval(interval);
@@ -1062,7 +1055,7 @@
           
           if (porc === 100) {
             detalles.textContent = '100% • Descarga completa';
-          } else if (torrent.progress > 0) {
+          } else {
             detalles.textContent = `${porc}% completado (${formatearTamano(torrent.downloaded)} / ${formatearTamano(torrent.length)})`;
           }
         }, 500);
