@@ -8,7 +8,10 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     body { font-family: system-ui, -apple-system, sans-serif; background-color: #121212; color: #fff; margin: 0; padding: 30px 20px; }
-    header { text-align: center; margin-bottom: 30px; }
+    header { text-align: center; margin-bottom: 30px; position: relative; max-width: 1100px; margin-left: auto; margin-right: auto; }
+    .btn-admin { position: absolute; top: 0; right: 0; background: #222; color: #aaa; border: 1px solid #333; padding: 8px 12px; border-radius: 8px; cursor: pointer; font-size: 0.85rem; }
+    .btn-admin:hover { background: #2c2c2c; color: #fff; }
+    .btn-admin.activo { background: #18241e; color: #00e676; border-color: #00e67666; }
     .banner-diagnostico { max-width: 650px; margin: 0 auto 25px auto; background: #2c1518; border: 1px solid #ff5252; border-left: 5px solid #ff5252; padding: 16px 20px; border-radius: 8px; display: none; }
     .banner-diagnostico h4 { margin: 0 0 8px 0; color: #ff8a80; font-size: 1.05rem; }
     .banner-diagnostico p { margin: 0 0 8px 0; font-size: 0.9rem; color: #ffcdd2; line-height: 1.4; }
@@ -20,6 +23,8 @@
     .btn { background: #00e676; color: #121212; border: none; border-radius: 8px; padding: 12px; font-weight: bold; cursor: pointer; width: 100%; font-size: 0.95rem; }
     .btn:hover:not(:disabled) { background: #00c853; }
     .btn:disabled { background: #333; color: #888; cursor: not-allowed; }
+    .btn-borrar { background: #ff5252; color: #fff; border: none; border-radius: 8px; padding: 9px; font-weight: bold; cursor: pointer; width: 100%; font-size: 0.85rem; margin-top: 8px; }
+    .btn-borrar:hover { background: #ff1744; }
     .panel-semillas { max-width: 1100px; margin: 0 auto 30px auto; background: #18241e; border: 1px solid #00e67644; padding: 15px 20px; border-radius: 10px; display: none; }
     .panel-semillas h4 { margin: 0 0 8px 0; color: #00e676; }
     .grid-archivos { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; max-width: 1100px; margin: 0 auto; }
@@ -32,11 +37,15 @@
     .barra-fondo { background: #333; border-radius: 6px; height: 12px; overflow: hidden; margin-bottom: 8px; }
     .barra-progreso { background: #00e676; height: 100%; width: 0%; transition: width 0.3s; }
     .detalles { font-size: 0.8rem; color: #a0a0a0; text-align: center; }
+    @media (max-width: 650px) {
+      .btn-admin { position: static; margin-bottom: 15px; display: inline-block; }
+    }
   </style>
 </head>
 <body>
 
   <header>
+    <button type="button" class="btn-admin" id="btn-admin">🔒 Admin</button>
     <h1>PitiTorrent P2P</h1>
     <p>Sube cualquier archivo de tu dispositivo para convertirlo en torrent y compartirlo al instante</p>
   </header>
@@ -69,6 +78,9 @@
   <main class="grid-archivos" id="catalogo">Cargando catálogo...</main>
 
   <script>
+    // CAMBIA AQUÍ TU CONTRASEÑA MAESTRA:
+    const CLAVE_ADMIN = 'piti1234';
+
     const SUPABASE_URL = 'https://nkcfnbygggrekgnbbjrx.supabase.co';
     const SUPABASE_KEY = 'sb_publishable_WzkcsriEcH71Ym0QMHt0gA_Utm_oKgu';
     const catalogoEl = document.getElementById('catalogo');
@@ -78,6 +90,60 @@
       db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     } else {
       catalogoEl.innerHTML = '<p style="color:#ff8a80;">No se pudo cargar la librería de base de datos (Supabase). Revisa tu conexión o bloqueador.</p>';
+    }
+
+    let modoAdmin = localStorage.getItem('pititorrent_admin') === 'true';
+    const btnAdmin = document.getElementById('btn-admin');
+
+    function actualizarBotonAdmin() {
+      if (modoAdmin) {
+        btnAdmin.textContent = '🔓 Modo Admin';
+        btnAdmin.classList.add('activo');
+      } else {
+        btnAdmin.textContent = '🔒 Admin';
+        btnAdmin.classList.remove('activo');
+      }
+    }
+
+    actualizarBotonAdmin();
+
+    btnAdmin.addEventListener('click', function() {
+      if (modoAdmin) {
+        modoAdmin = false;
+        localStorage.removeItem('pititorrent_admin');
+        actualizarBotonAdmin();
+        cargarCatalogo();
+      } else {
+        const intento = prompt('Introduce tu contraseña de administrador:');
+        if (intento === null) return;
+        if (intento === CLAVE_ADMIN) {
+          modoAdmin = true;
+          localStorage.setItem('pititorrent_admin', 'true');
+          actualizarBotonAdmin();
+          cargarCatalogo();
+        } else {
+          alert('Contraseña incorrecta.');
+        }
+      }
+    });
+
+    async function eliminarTorrent(id, titulo, infoHash) {
+      if (!db || !modoAdmin) return;
+      if (!confirm('¿Eliminar "' + titulo + '" del catálogo?')) return;
+
+      const res = await db.from('torrents').delete().eq('id', id);
+
+      if (res.error) {
+        alert('Error al borrar: ' + res.error.message + '\n\nAsegúrate de tener activado el permiso DELETE en Supabase.');
+        return;
+      }
+
+      if (client && infoHash) {
+        const activo = client.get(infoHash);
+        if (activo) activo.destroy();
+      }
+
+      cargarCatalogo();
     }
 
     let client = null;
@@ -221,12 +287,17 @@
           tarjeta.className = 'tarjeta';
           const imgUrl = item.imagen || 'https://placehold.co/600x400/1e1e1e/00e676?text=PitiTorrent+P2P';
 
+          const botonBorrarHtml = modoAdmin
+            ? '<button type="button" class="btn-borrar" id="del-' + item.id + '">🗑️ Eliminar</button>'
+            : '';
+
           tarjeta.innerHTML =
             '<img src="' + imgUrl + '" alt="' + item.titulo + '" onerror="this.src=\'https://placehold.co/600x400/1e1e1e/00e676?text=PitiTorrent+P2P\'">' +
             '<div class="contenido">' +
               '<h3>' + item.titulo + '</h3>' +
               '<p>' + (item.descripcion || 'Sin descripción') + '</p>' +
               '<button class="btn" id="btn-' + item.id + '">Descargar P2P</button>' +
+              botonBorrarHtml +
               '<div class="zona-progreso" id="prog-zona-' + item.id + '">' +
                 '<div class="barra-fondo">' +
                   '<div class="barra-progreso" id="barra-' + item.id + '"></div>' +
@@ -240,6 +311,12 @@
           document.getElementById('btn-' + item.id).addEventListener('click', function() {
             iniciarDescarga(item.info_hash, item.id);
           });
+
+          if (modoAdmin) {
+            document.getElementById('del-' + item.id).addEventListener('click', function() {
+              eliminarTorrent(item.id, item.titulo, item.info_hash);
+            });
+          }
         });
       } catch (err) {
         catalogoEl.innerHTML = '<p style="color:#ff8a80;">Error inesperado al conectar con Supabase: ' + err.message + '</p>';
@@ -257,7 +334,6 @@
       const barra = document.getElementById('barra-' + id);
       const detalles = document.getElementById('detalles-' + id);
 
-      // Comprobar si este torrent ya está en el cliente (por ejemplo, si lo acabas de subir en esta pestaña o ya se descargó)
       const existente = client.get(infoHash);
       if (existente) {
         zona.style.display = 'block';
