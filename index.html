@@ -116,6 +116,9 @@
     try {
       if (typeof WebTorrent !== 'undefined') {
         client = new WebTorrent();
+        client.on('error', function(err) {
+          console.warn('Aviso de WebTorrent:', err.message);
+        });
       }
     } catch (e) {
       causaBloqueo = 'Error al iniciar WebTorrent: ' + e.message;
@@ -125,9 +128,23 @@
 
     const trackers = [
       'wss://tracker.openwebtorrent.com',
-      'wss://tracker.btorrent.xyz',
-      'wss://tracker.webtorrent.dev'
+      'wss://tracker.webtorrent.dev',
+      'wss://tracker.files.fm:7073/announce'
     ];
+
+    function guardarArchivosDeTorrent(torrent) {
+      torrent.files.forEach(function(file) {
+        file.getBlobURL(function(err, url) {
+          if (err) return alert('Error al generar descarga: ' + err.message);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = file.name;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+        });
+      });
+    }
 
     document.getElementById('form-subir').addEventListener('submit', function(e) {
       e.preventDefault();
@@ -240,6 +257,23 @@
       const barra = document.getElementById('barra-' + id);
       const detalles = document.getElementById('detalles-' + id);
 
+      // Comprobar si este torrent ya está en el cliente (por ejemplo, si lo acabas de subir en esta pestaña o ya se descargó)
+      const existente = client.get(infoHash);
+      if (existente) {
+        zona.style.display = 'block';
+        if (existente.done || existente.progress === 1) {
+          barra.style.width = '100%';
+          btn.textContent = '¡Descargado!';
+          detalles.textContent = '100% • Archivo listo en tu navegador';
+          guardarArchivosDeTorrent(existente);
+        } else {
+          btn.disabled = true;
+          btn.textContent = 'Descargando...';
+          detalles.textContent = Math.round(existente.progress * 100) + '% • En curso...';
+        }
+        return;
+      }
+
       btn.disabled = true;
       btn.textContent = 'Buscando semillas...';
       zona.style.display = 'block';
@@ -259,20 +293,10 @@
         torrent.on('done', function() {
           clearInterval(intervalo);
           barra.style.width = '100%';
-          btn.textContent = '¡Descargado!';
+          btn.disabled = false;
+          btn.textContent = '¡Descargado! (Guardar de nuevo)';
           detalles.textContent = '100% • Guardando archivo...';
-
-          torrent.files.forEach(function(file) {
-            file.getBlobURL(function(err, url) {
-              if (err) return alert('Error al generar descarga: ' + err.message);
-              const a = document.createElement('a');
-              a.href = url;
-              a.download = file.name;
-              document.body.appendChild(a);
-              a.click();
-              document.body.removeChild(a);
-            });
-          });
+          guardarArchivosDeTorrent(torrent);
         });
       });
     }
