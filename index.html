@@ -3,10 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PitiTorrent - Compartir Archivos y Carpetas P2P</title>
+  <title>PitiTorrent - Compartir Archivos, Carpetas y Google Drive P2P</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/webtorrent/1.9.7/webtorrent.min.js" onerror="window.falloCargaWebTorrent = true;"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- Google Identity Services para conectar Google Drive -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
   <style>
     body { font-family: system-ui, -apple-system, sans-serif; background-color: #121212; color: #fff; margin: 0; padding: 30px 20px; }
     header { text-align: center; margin-bottom: 24px; position: relative; max-width: 1100px; margin-left: auto; margin-right: auto; }
@@ -19,7 +21,7 @@
       display: flex;
       justify-content: center;
       gap: 12px;
-      max-width: 500px;
+      max-width: 560px;
       margin: 0 auto 30px auto;
       background: #1a1a1a;
       padding: 6px;
@@ -38,34 +40,125 @@
       cursor: pointer;
       transition: all 0.2s ease;
     }
-    .tab-btn:hover {
-      color: #fff;
-      background: #252525;
-    }
+    .tab-btn:hover { color: #fff; background: #252525; }
     .tab-btn.activa {
       background: #00e676;
       color: #121212;
       box-shadow: 0 2px 10px rgba(0, 230, 118, 0.25);
     }
 
-    /* Secciones separadas */
-    .vista-seccion {
-      display: none;
-    }
-    .vista-seccion.activa {
-      display: block;
-    }
+    .vista-seccion { display: none; }
+    .vista-seccion.activa { display: block; }
 
     .banner-diagnostico { max-width: 650px; margin: 0 auto 25px auto; background: #2c1518; border: 1px solid #ff5252; border-left: 5px solid #ff5252; padding: 16px 20px; border-radius: 8px; display: none; }
     .banner-diagnostico h4 { margin: 0 0 8px 0; color: #ff8a80; font-size: 1.05rem; }
     .banner-diagnostico p { margin: 0 0 8px 0; font-size: 0.9rem; color: #ffcdd2; line-height: 1.4; }
     .banner-diagnostico ul { margin: 8px 0 0 0; padding-left: 20px; font-size: 0.85rem; color: #ffebee; }
-    
-    .formulario-caja { background: #1e1e1e; max-width: 520px; margin: 0 auto 30px auto; padding: 24px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.4); }
-    .formulario-caja h3 { margin-top: 0; }
+
+    /* Panel global de semillas activas con métricas en vivo */
+    .panel-semillas {
+      max-width: 1100px;
+      margin: 0 auto 25px auto;
+      background: #15221b;
+      border: 1px solid #00e67655;
+      padding: 18px 20px;
+      border-radius: 12px;
+      display: none;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+    }
+    .panel-semillas-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 12px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #00e67622;
+    }
+    .panel-semillas-header h4 { margin: 0; color: #00e676; font-size: 1rem; }
+    .resumen-red-global {
+      display: flex;
+      gap: 14px;
+      font-size: 0.85rem;
+      background: #0e1712;
+      padding: 6px 12px;
+      border-radius: 8px;
+      border: 1px solid #00e67633;
+    }
+    .resumen-red-global span strong { color: #00e676; }
+
+    .item-semilla {
+      background: #1b2b22;
+      border: 1px solid #284234;
+      border-radius: 8px;
+      padding: 12px 14px;
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .item-semilla:last-child { margin-bottom: 0; }
+    .semilla-info { flex: 1; min-width: 220px; }
+    .semilla-titulo { font-weight: 600; color: #fff; font-size: 0.95rem; margin-bottom: 4px; }
+    .semilla-meta { font-size: 0.8rem; color: #9ab8a8; }
+    .badge-origen {
+      display: inline-block;
+      font-size: 0.72rem;
+      padding: 2px 7px;
+      border-radius: 4px;
+      background: #263238;
+      color: #80cbc4;
+      margin-left: 6px;
+      vertical-align: middle;
+    }
+    .badge-origen.drive { background: #1a283b; color: #64b5f6; border: 1px solid #64b5f644; }
+    .semilla-metricas {
+      display: flex;
+      gap: 14px;
+      align-items: center;
+      flex-wrap: wrap;
+      font-size: 0.85rem;
+    }
+    .metrica-pill {
+      background: #111b16;
+      padding: 5px 10px;
+      border-radius: 6px;
+      border: 1px solid #2b4537;
+      color: #d0e8db;
+    }
+    .metrica-pill strong { color: #00e676; }
+    .btn-detener-seed {
+      background: #3a1c1c;
+      color: #ff8a80;
+      border: 1px solid #ff525255;
+      padding: 5px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.8rem;
+    }
+    .btn-detener-seed:hover { background: #ff5252; color: #fff; }
+
+    /* Formularios */
+    .contenedor-subida {
+      max-width: 600px;
+      margin: 0 auto 30px auto;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+    .formulario-caja {
+      background: #1e1e1e;
+      padding: 24px;
+      border-radius: 12px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+      border: 1px solid #2a2a2a;
+    }
+    .formulario-caja h3 { margin-top: 0; display: flex; align-items: center; gap: 8px; }
     input[type="text"], input[type="url"] { width: 100%; padding: 10px; margin-bottom: 12px; border-radius: 6px; border: 1px solid #333; background: #2a2a2a; color: #fff; box-sizing: border-box; }
     
-    /* Zona de selección de archivos y carpetas */
     .zona-drop {
       border: 2px dashed #444;
       background: #252525;
@@ -75,16 +168,8 @@
       margin-bottom: 14px;
       transition: all 0.2s ease;
     }
-    .zona-drop.dragover {
-      border-color: #00e676;
-      background: #18241e;
-    }
-    .botones-seleccion {
-      display: flex;
-      gap: 10px;
-      justify-content: center;
-      margin-bottom: 10px;
-    }
+    .zona-drop.dragover { border-color: #00e676; background: #18241e; }
+    .botones-seleccion { display: flex; gap: 10px; justify-content: center; margin-bottom: 10px; }
     .btn-secundario {
       background: #333;
       color: #fff;
@@ -96,30 +181,35 @@
       font-weight: 600;
       flex: 1;
     }
-    .btn-secundario:hover {
-      background: #3e3e3e;
-      border-color: #00e676;
-    }
-    .info-seleccion {
-      font-size: 0.85rem;
-      color: #aaa;
-      margin: 0;
-      word-break: break-word;
-    }
-    .info-seleccion.cargado {
-      color: #00e676;
-      font-weight: 500;
-    }
+    .btn-secundario:hover { background: #3e3e3e; border-color: #00e676; }
+    .info-seleccion { font-size: 0.85rem; color: #aaa; margin: 0; word-break: break-word; }
+    .info-seleccion.cargado { color: #00e676; font-weight: 500; }
 
-    .aviso-seed { background: #262216; border-left: 4px solid #ffb300; padding: 10px 14px; font-size: 0.85rem; color: #ffe082; margin-bottom: 15px; border-radius: 4px; }
+    .aviso-seed { background: #262216; border-left: 4px solid #ffb300; padding: 10px 14px; font-size: 0.85rem; color: #ffe082; margin-bottom: 15px; border-radius: 4px; line-height: 1.4; }
+    .aviso-drive { background: #16222f; border-left: 4px solid #42a5f5; padding: 10px 14px; font-size: 0.84rem; color: #bbdefb; margin-bottom: 15px; border-radius: 4px; line-height: 1.4; }
+    
     .btn { background: #00e676; color: #121212; border: none; border-radius: 8px; padding: 12px; font-weight: bold; cursor: pointer; width: 100%; font-size: 0.95rem; }
     .btn:hover:not(:disabled) { background: #00c853; }
     .btn:disabled { background: #333; color: #888; cursor: not-allowed; }
+    
+    .btn-drive { background: #4285f4; color: #fff; border: none; border-radius: 8px; padding: 12px; font-weight: bold; cursor: pointer; width: 100%; font-size: 0.95rem; }
+    .btn-drive:hover:not(:disabled) { background: #3367d6; }
+    .btn-drive:disabled { background: #333; color: #888; cursor: not-allowed; }
+
+    .estado-drive-box {
+      margin-top: 14px;
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 0.85rem;
+      display: none;
+    }
+    .estado-drive-box.activo { display: block; }
+    .drive-log { color: #8b949e; margin-top: 6px; font-size: 0.8rem; max-height: 110px; overflow-y: auto; }
+
     .btn-borrar { background: #ff5252; color: #fff; border: none; border-radius: 8px; padding: 9px; font-weight: bold; cursor: pointer; width: 100%; font-size: 0.85rem; margin-top: 8px; }
     .btn-borrar:hover { background: #ff1744; }
-    
-    .panel-semillas { max-width: 1100px; margin: 0 auto 25px auto; background: #18241e; border: 1px solid #00e67644; padding: 15px 20px; border-radius: 10px; display: none; }
-    .panel-semillas h4 { margin: 0 0 8px 0; color: #00e676; }
     
     .cabecera-catalogo {
       max-width: 1100px;
@@ -130,11 +220,7 @@
       border-bottom: 1px solid #262626;
       padding-bottom: 10px;
     }
-    .cabecera-catalogo h2 {
-      margin: 0;
-      font-size: 1.25rem;
-      color: #eee;
-    }
+    .cabecera-catalogo h2 { margin: 0; font-size: 1.25rem; color: #eee; }
     .btn-refrescar {
       background: #222;
       color: #ccc;
@@ -144,21 +230,29 @@
       cursor: pointer;
       font-size: 0.85rem;
     }
-    .btn-refrescar:hover {
-      background: #2c2c2c;
-      color: #fff;
-    }
+    .btn-refrescar:hover { background: #2c2c2c; color: #fff; }
 
-    .grid-archivos { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; max-width: 1100px; margin: 0 auto; }
-    .tarjeta { background: #1e1e1e; border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 8px 20px rgba(0,0,0,0.4); }
+    .grid-archivos { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 24px; max-width: 1100px; margin: 0 auto; }
+    .tarjeta { background: #1e1e1e; border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 8px 20px rgba(0,0,0,0.4); border: 1px solid #292929; }
     .tarjeta img { width: 100%; height: 170px; object-fit: cover; background: #2a2a2a; }
     .contenido { padding: 20px; display: flex; flex-direction: column; flex-grow: 1; }
     .contenido h3 { margin: 0 0 8px 0; }
-    .contenido p { color: #b0b0b0; font-size: 0.9rem; margin: 0 0 20px 0; flex-grow: 1; }
-    .zona-progreso { display: none; margin-top: 15px; }
-    .barra-fondo { background: #333; border-radius: 6px; height: 12px; overflow: hidden; margin-bottom: 8px; }
+    .contenido p { color: #b0b0b0; font-size: 0.9rem; margin: 0 0 16px 0; flex-grow: 1; }
+    
+    .zona-progreso { display: none; margin-top: 14px; background: #161616; padding: 10px; border-radius: 8px; border: 1px solid #2c2c2c; }
+    .barra-fondo { background: #333; border-radius: 6px; height: 10px; overflow: hidden; margin-bottom: 8px; }
     .barra-progreso { background: #00e676; height: 100%; width: 0%; transition: width 0.3s; }
-    .detalles { font-size: 0.8rem; color: #a0a0a0; text-align: center; }
+    .detalles { font-size: 0.82rem; color: #e0e0e0; text-align: center; font-weight: 500; }
+    .stats-cliente-extra {
+      display: flex;
+      justify-content: space-around;
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid #262626;
+      font-size: 0.78rem;
+      color: #aaa;
+    }
+    .stats-cliente-extra span strong { color: #00e676; }
     
     @media (max-width: 650px) {
       .btn-admin { position: static; margin-bottom: 15px; display: inline-block; }
@@ -170,13 +264,13 @@
   <header>
     <button type="button" class="btn-admin" id="btn-admin">🔒 Admin</button>
     <h1>PitiTorrent P2P</h1>
-    <p>Intercambio directo de archivos y carpetas entre navegadores</p>
+    <p>Intercambio directo de archivos, carpetas y nube entre navegadores</p>
   </header>
 
   <!-- Selector de apartado -->
   <nav class="tabs-nav">
     <button type="button" class="tab-btn activa" id="tab-descargar">📥 Descargar (Catálogo)</button>
-    <button type="button" class="tab-btn" id="tab-subir">📤 Subir Archivo / Carpeta</button>
+    <button type="button" class="tab-btn" id="tab-subir">📤 Subir / Servidor Nube</button>
   </nav>
 
   <section class="banner-diagnostico" id="banner-error">
@@ -185,10 +279,16 @@
     <ul id="detalles-diagnostico"></ul>
   </section>
 
-  <!-- Panel global de semillas activas (visible en ambos apartados si estás compartiendo algo) -->
+  <!-- Panel global de semillas activas con métricas en tiempo real -->
   <section class="panel-semillas" id="panel-semillas">
-    <h4>🟢 Compartiendo actualmente desde tu navegador (No cierres esta pestaña):</h4>
-    <div id="lista-semillas" style="font-size: 0.9rem; color: #ccc;"></div>
+    <div class="panel-semillas-header">
+      <h4>🟢 Servidor Activo — Compartiendo desde tu navegador:</h4>
+      <div class="resumen-red-global">
+        <span>👥 Total conectados: <strong id="global-peers">0</strong></span>
+        <span>⬆️ Subida total: <strong id="global-upload-speed">0 KB/s</strong></span>
+      </div>
+    </div>
+    <div id="lista-semillas"></div>
   </section>
 
   <!-- APARTADO 1: DESCARGAR / CATÁLOGO -->
@@ -200,30 +300,59 @@
     <main class="grid-archivos" id="catalogo">Cargando catálogo...</main>
   </section>
 
-  <!-- APARTADO 2: SUBIR / COMPARTIR -->
+  <!-- APARTADO 2: SUBIR / COMPARTIR Y GOOGLE DRIVE -->
   <section id="vista-subir" class="vista-seccion">
-    <div class="formulario-caja">
-      <h3>Compartir nuevo archivo o carpeta</h3>
-      <div class="aviso-seed">
-        <strong>Importante:</strong> Mantén esta pestaña abierta mientras otros descargan tu contenido, ya que se envía directamente desde tu dispositivo.
-      </div>
-      <form id="form-subir">
-        <input type="file" id="input-archivos" multiple style="display: none;">
-        <input type="file" id="input-carpeta" webkitdirectory directory multiple style="display: none;">
-
-        <div class="zona-drop" id="zona-drop">
-          <div class="botones-seleccion">
-            <button type="button" class="btn-secundario" id="btn-elegir-archivos">📄 Elegir Archivo(s)</button>
-            <button type="button" class="btn-secundario" id="btn-elegir-carpeta">📁 Elegir Carpeta</button>
-          </div>
-          <p class="info-seleccion" id="info-seleccion">O arrastra y suelta aquí tus archivos o carpetas</p>
+    <div class="contenedor-subida">
+      
+      <!-- Opción A: Subida Local -->
+      <div class="formulario-caja">
+        <h3>💻 Compartir desde este dispositivo</h3>
+        <div class="aviso-seed">
+          <strong>Importante:</strong> Mantén esta pestaña abierta mientras otros descargan tu contenido. Arriba podrás ver cuánta gente está conectada y a qué velocidad estás enviando.
         </div>
+        <form id="form-subir">
+          <input type="file" id="input-archivos" multiple style="display: none;">
+          <input type="file" id="input-carpeta" webkitdirectory directory multiple style="display: none;">
 
-        <input type="text" id="titulo" placeholder="Título del archivo o carpeta" required>
-        <input type="text" id="descripcion" placeholder="Breve descripción">
-        <input type="url" id="imagen" placeholder="URL de imagen de portada (opcional)">
-        <button type="submit" class="btn" id="btn-publicar">Crear Torrent y Publicar</button>
-      </form>
+          <div class="zona-drop" id="zona-drop">
+            <div class="botones-seleccion">
+              <button type="button" class="btn-secundario" id="btn-elegir-archivos">📄 Elegir Archivo(s)</button>
+              <button type="button" class="btn-secundario" id="btn-elegir-carpeta">📁 Elegir Carpeta</button>
+            </div>
+            <p class="info-seleccion" id="info-seleccion">O arrastra y suelta aquí tus archivos o carpetas</p>
+          </div>
+
+          <input type="text" id="titulo" placeholder="Título del archivo o carpeta" required>
+          <input type="text" id="descripcion" placeholder="Breve descripción">
+          <input type="url" id="imagen" placeholder="URL de imagen de portada (opcional)">
+          <button type="submit" class="btn" id="btn-publicar">Crear Torrent y Publicar</button>
+        </form>
+      </div>
+
+      <!-- Opción B: Servidor Carpeta Google Drive -->
+      <div class="formulario-caja">
+        <h3>☁️ Conectar Carpeta de Google Drive (Modo Servidor)</h3>
+        <div class="aviso-drive">
+          Conecta una carpeta de tu Google Drive para que esta pestaña actúe como <strong>servidor P2P automático</strong>: leerá los archivos de la carpeta, los publicará en el catálogo y los compartirá en tiempo real.
+        </div>
+        <form id="form-drive">
+          <input type="text" id="drive-client-id" placeholder="Google OAuth Client ID (ej. 123456-abc.apps.googleusercontent.com)" required>
+          <input type="text" id="drive-folder-url" placeholder="URL o ID de la carpeta de Google Drive" required>
+          <div style="display: flex; gap: 10px;">
+            <button type="submit" class="btn-drive" id="btn-conectar-drive">🔗 Conectar y Sincronizar Carpeta</button>
+            <button type="button" class="btn-secundario" id="btn-sincronizar-ahora" style="display: none; flex: 0 0 auto;">🔄 Re-escanear</button>
+          </div>
+        </form>
+
+        <div class="estado-drive-box" id="estado-drive-box">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <strong id="drive-estado-titulo" style="color: #64b5f6;">Conectado a Google Drive</strong>
+            <button type="button" id="btn-desconectar-drive" style="background:none; border:none; color:#ff8a80; cursor:pointer; font-size:0.8rem;">Desconectar</button>
+          </div>
+          <div class="drive-log" id="drive-log">Esperando conexión...</div>
+        </div>
+      </div>
+
     </div>
   </section>
 
@@ -234,6 +363,26 @@
     const SUPABASE_URL = 'https://nkcfnbygggrekgnbbjrx.supabase.co';
     const SUPABASE_KEY = 'sb_publishable_WzkcsriEcH71Ym0QMHt0gA_Utm_oKgu';
     const catalogoEl = document.getElementById('catalogo');
+
+    // --- UTILIDADES DE FORMATO ---
+    function formatearTamano(bytes) {
+      if (!bytes || bytes === 0) return '0 B';
+      const k = 1024;
+      const tamaños = ['B', 'KB', 'MB', 'GB', 'TB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + tamaños[i];
+    }
+
+    function formatearVelocidad(bytesPorSegundo) {
+      if (!bytesPorSegundo || bytesPorSegundo < 1024) {
+        return Math.round(bytesPorSegundo || 0) + ' B/s';
+      }
+      const kbps = bytesPorSegundo / 1024;
+      if (kbps < 1024) {
+        return kbps.toFixed(1) + ' KB/s';
+      }
+      return (kbps / 1024).toFixed(2) + ' MB/s';
+    }
 
     // --- NAVEGACIÓN ENTRE APARTADOS ---
     const tabDescargar = document.getElementById('tab-descargar');
@@ -316,6 +465,8 @@
       if (client && infoHash) {
         const activo = client.get(infoHash);
         if (activo) activo.destroy();
+        semillasActivas.delete(infoHash);
+        renderizarPanelSemillas();
       }
 
       cargarCatalogo();
@@ -374,7 +525,90 @@
       'wss://tracker.files.fm:7073/announce'
     ];
 
-    // --- GESTIÓN DE ARCHIVOS Y CARPETAS (APARTADO SUBIR) ---
+    // --- MONITOR EN TIEMPO REAL DE SEMILLAS (SERVIDOR) ---
+    // Map<infoHash, { torrent, titulo, numArchivos, tamanoTotal, origen }>
+    const semillasActivas = new Map();
+
+    function registrarSemillaEnPanel(torrent, meta) {
+      semillasActivas.set(torrent.infoHash, {
+        torrent: torrent,
+        titulo: meta.titulo || torrent.name,
+        numArchivos: meta.numArchivos || torrent.files.length,
+        tamanoTotal: meta.tamanoTotal || torrent.length,
+        origen: meta.origen || 'Local'
+      });
+      renderizarPanelSemillas();
+    }
+
+    function detenerSemilla(infoHash) {
+      const registro = semillasActivas.get(infoHash);
+      if (registro && registro.torrent) {
+        registro.torrent.destroy();
+      }
+      semillasActivas.delete(infoHash);
+      renderizarPanelSemillas();
+    }
+
+    function renderizarPanelSemillas() {
+      const panel = document.getElementById('panel-semillas');
+      const lista = document.getElementById('lista-semillas');
+
+      if (semillasActivas.size === 0) {
+        panel.style.display = 'none';
+        return;
+      }
+
+      panel.style.display = 'block';
+      let totalPeers = 0;
+      let totalUploadSpeed = 0;
+
+      let html = '';
+      semillasActivas.forEach((item, hash) => {
+        const t = item.torrent;
+        const peers = t.numPeers || 0;
+        const upSpeed = t.uploadSpeed || 0;
+        const uploaded = t.uploaded || 0;
+
+        totalPeers += peers;
+        totalUploadSpeed += upSpeed;
+
+        const icono = item.numArchivos > 1 ? '📁' : '📄';
+        const claseOrigen = item.origen === 'Google Drive' ? 'badge-origen drive' : 'badge-origen';
+
+        html += `
+          <div class="item-semilla">
+            <div class="semilla-info">
+              <div class="semilla-titulo">
+                ${icono} ${item.titulo}
+                <span class="${claseOrigen}">${item.origen}</span>
+              </div>
+              <div class="semilla-meta">
+                ${item.numArchivos} archivo(s) • ${formatearTamano(item.tamanoTotal)} • Hash: <code>${hash.slice(0, 10)}...</code>
+              </div>
+            </div>
+            <div class="semilla-metricas">
+              <div class="metrica-pill">👥 Gente conectada: <strong>${peers}</strong></div>
+              <div class="metrica-pill">⬆️ Aportando: <strong>${formatearVelocidad(upSpeed)}</strong></div>
+              <div class="metrica-pill">📦 Enviado: <strong>${formatearTamano(uploaded)}</strong></div>
+              <button type="button" class="btn-detener-seed" onclick="detenerSemilla('${hash}')">Detener</button>
+            </div>
+          </div>
+        `;
+      });
+
+      lista.innerHTML = html;
+      document.getElementById('global-peers').textContent = totalPeers;
+      document.getElementById('global-upload-speed').textContent = formatearVelocidad(totalUploadSpeed);
+    }
+
+    // Actualizar estadísticas del panel servidor cada 1 segundo
+    setInterval(() => {
+      if (semillasActivas.size > 0) {
+        renderizarPanelSemillas();
+      }
+    }, 1000);
+
+    // --- GESTIÓN DE ARCHIVOS Y CARPETAS LOCALES (APARTADO SUBIR) ---
     let archivosSeleccionados = [];
     const inputArchivos = document.getElementById('input-archivos');
     const inputCarpeta = document.getElementById('input-carpeta');
@@ -384,14 +618,6 @@
 
     document.getElementById('btn-elegir-archivos').addEventListener('click', () => inputArchivos.click());
     document.getElementById('btn-elegir-carpeta').addEventListener('click', () => inputCarpeta.click());
-
-    function formatearTamano(bytes) {
-      if (bytes === 0) return '0 B';
-      const k = 1024;
-      const tamaños = ['B', 'KB', 'MB', 'GB', 'TB'];
-      const i = Math.floor(Math.log(bytes) / Math.log(k));
-      return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + tamaños[i];
-    }
 
     function establecerSeleccion(listaArchivos, nombreSugerido) {
       archivosSeleccionados = Array.from(listaArchivos);
@@ -415,22 +641,15 @@
       }
     }
 
-    inputArchivos.addEventListener('change', (e) => {
-      establecerSeleccion(e.target.files);
-    });
-
-    inputCarpeta.addEventListener('change', (e) => {
-      establecerSeleccion(e.target.files);
-    });
+    inputArchivos.addEventListener('change', (e) => establecerSeleccion(e.target.files));
+    inputCarpeta.addEventListener('change', (e) => establecerSeleccion(e.target.files));
 
     zonaDrop.addEventListener('dragover', (e) => {
       e.preventDefault();
       zonaDrop.classList.add('dragover');
     });
 
-    zonaDrop.addEventListener('dragleave', () => {
-      zonaDrop.classList.remove('dragover');
-    });
+    zonaDrop.addEventListener('dragleave', () => zonaDrop.classList.remove('dragover'));
 
     async function leerEntradaRecursiva(entry, rutaBase = '') {
       if (entry.isFile) {
@@ -519,8 +738,10 @@
       btn.textContent = 'Generando Torrent P2P...';
 
       const nombreTorrent = document.getElementById('titulo').value.trim();
+      const copiaArchivos = [...archivosSeleccionados];
+      const totalBytes = copiaArchivos.reduce((acc, f) => acc + f.size, 0);
 
-      client.seed(archivosSeleccionados, { name: nombreTorrent, announce: trackers }, async function(torrent) {
+      client.seed(copiaArchivos, { name: nombreTorrent, announce: trackers }, async function(torrent) {
         const nuevo = {
           titulo: nombreTorrent,
           descripcion: document.getElementById('descripcion').value,
@@ -538,14 +759,13 @@
           return;
         }
 
-        document.getElementById('panel-semillas').style.display = 'block';
-        const item = document.createElement('div');
-        item.style.marginBottom = '6px';
-        const icono = archivosSeleccionados.length > 1 ? '📁' : '📄';
-        item.innerHTML = `${icono} <strong>${nuevo.titulo}</strong> (${archivosSeleccionados.length} archivo/s) — Hash: <code>${torrent.infoHash}</code>`;
-        document.getElementById('lista-semillas').appendChild(item);
+        registrarSemillaEnPanel(torrent, {
+          titulo: nuevo.titulo,
+          numArchivos: copiaArchivos.length,
+          tamanoTotal: totalBytes,
+          origen: 'Local'
+        });
 
-        // Limpiar formulario y cambiar automáticamente al apartado de descarga para verlo publicado
         e.target.reset();
         archivosSeleccionados = [];
         infoSeleccion.classList.remove('cargado');
@@ -555,6 +775,189 @@
         cambiarPestana('descargar');
       });
     });
+
+    // --- INTEGRACIÓN GOOGLE DRIVE COMO SERVIDOR AUTOMÁTICO ---
+    let driveAccessToken = null;
+    let driveFolderId = null;
+    let driveArchivosProcesados = new Set();
+    let intervaloDrive = null;
+
+    // Recuperar Client ID guardado si existe
+    const clientIdGuardado = localStorage.getItem('pititorrent_drive_client_id');
+    if (clientIdGuardado) {
+      document.getElementById('drive-client-id').value = clientIdGuardado;
+    }
+
+    function extraerIdCarpetaDrive(entrada) {
+      const limpio = entrada.trim();
+      const matchFolders = limpio.match(/\/folders\/([a-zA-Z0-9_-]+)/);
+      if (matchFolders) return matchFolders[1];
+      const matchIdParam = limpio.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+      if (matchIdParam) return matchIdParam[1];
+      return limpio;
+    }
+
+    function logDrive(mensaje) {
+      const box = document.getElementById('estado-drive-box');
+      const logEl = document.getElementById('drive-log');
+      box.classList.add('activo');
+      const hora = new Date().toLocaleTimeString();
+      const linea = document.createElement('div');
+      linea.textContent = `[${hora}] ${mensaje}`;
+      logEl.prepend(linea);
+    }
+
+    document.getElementById('form-drive').addEventListener('submit', function(e) {
+      e.preventDefault();
+      if (!client) {
+        alert('El motor WebTorrent no está disponible en este navegador.');
+        return;
+      }
+
+      const clientId = document.getElementById('drive-client-id').value.trim();
+      const folderInput = document.getElementById('drive-folder-url').value.trim();
+      driveFolderId = extraerIdCarpetaDrive(folderInput);
+
+      if (!clientId || !driveFolderId) {
+        alert('Introduce un Client ID válido y el enlace o ID de la carpeta de Drive.');
+        return;
+      }
+
+      if (typeof google === 'undefined' || !google.accounts || !google.accounts.oauth2) {
+        alert('No se pudo cargar la librería de Google Identity Services. Revisa tu conexión o bloqueador.');
+        return;
+      }
+
+      localStorage.setItem('pititorrent_drive_client_id', clientId);
+
+      const tokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: clientId,
+        scope: 'https://www.googleapis.com/auth/drive.readonly',
+        callback: async (tokenResponse) => {
+          if (tokenResponse.error) {
+            logDrive('Error de autorización: ' + tokenResponse.error);
+            return;
+          }
+          driveAccessToken = tokenResponse.access_token;
+          document.getElementById('btn-conectar-drive').textContent = '✅ Carpeta Conectada';
+          document.getElementById('btn-conectar-drive').disabled = true;
+          document.getElementById('btn-sincronizar-ahora').style.display = 'inline-block';
+          logDrive('Autorización correcta. Escaneando carpeta de Drive...');
+          
+          await sincronizarCarpetaDrive();
+
+          // Revisar cada 45 segundos si hay nuevos archivos en la carpeta de Drive
+          if (intervaloDrive) clearInterval(intervaloDrive);
+          intervaloDrive = setInterval(sincronizarCarpetaDrive, 45000);
+        }
+      });
+
+      tokenClient.requestAccessToken({ prompt: '' });
+    });
+
+    document.getElementById('btn-sincronizar-ahora').addEventListener('click', () => {
+      if (driveAccessToken && driveFolderId) {
+        logDrive('Buscando nuevos archivos en Google Drive...');
+        sincronizarCarpetaDrive();
+      }
+    });
+
+    document.getElementById('btn-desconectar-drive').addEventListener('click', () => {
+      driveAccessToken = null;
+      if (intervaloDrive) clearInterval(intervaloDrive);
+      document.getElementById('btn-conectar-drive').disabled = false;
+      document.getElementById('btn-conectar-drive').textContent = '🔗 Conectar y Sincronizar Carpeta';
+      document.getElementById('btn-sincronizar-ahora').style.display = 'none';
+      logDrive('Desconectado de Google Drive.');
+    });
+
+    async function sincronizarCarpetaDrive() {
+      if (!driveAccessToken || !driveFolderId) return;
+
+      try {
+        // Obtener nombre de la carpeta
+        const metaFolderRes = await fetch(`https://www.googleapis.com/drive/v3/files/${driveFolderId}?fields=id,name`, {
+          headers: { Authorization: `Bearer ${driveAccessToken}` }
+        });
+        const folderInfo = await metaFolderRes.json();
+        if (folderInfo.error) {
+          logDrive('Error al acceder a la carpeta: ' + folderInfo.error.message);
+          return;
+        }
+        document.getElementById('drive-estado-titulo').textContent = `☁️ Carpeta Drive: ${folderInfo.name}`;
+
+        // Listar archivos dentro de la carpeta (excluyendo subcarpetas vacías o elementos en papelera)
+        const query = encodeURIComponent(`'${driveFolderId}' in parents and trashed = false and mimeType != 'application/vnd.google-apps.folder'`);
+        const listRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${query}&fields=files(id,name,size,mimeType)`, {
+          headers: { Authorization: `Bearer ${driveAccessToken}` }
+        });
+        const listData = await listRes.json();
+
+        if (!listData.files || listData.files.length === 0) {
+          logDrive('La carpeta de Drive no contiene archivos descargables.');
+          return;
+        }
+
+        // Obtener catálogo actual de Supabase para no duplicar registros
+        const { data: existentes } = await db.from('torrents').select('info_hash, titulo');
+        const hashesExistentes = new Set((existentes || []).map(x => x.info_hash));
+
+        for (const fileMeta of listData.files) {
+          if (driveArchivosProcesados.has(fileMeta.id)) continue;
+
+          // Ignorar documentos nativos de Google Docs/Sheets sin tamaño binario directo si no se exportan
+          if (fileMeta.mimeType && fileMeta.mimeType.startsWith('application/vnd.google-apps.')) {
+            logDrive(`Omitido (documento nativo Google): ${fileMeta.name}`);
+            driveArchivosProcesados.add(fileMeta.id);
+            continue;
+          }
+
+          logDrive(`Descargando de Drive al servidor: ${fileMeta.name} (${formatearTamano(Number(fileMeta.size || 0))})...`);
+
+          const dlRes = await fetch(`https://www.googleapis.com/drive/v3/files/${fileMeta.id}?alt=media`, {
+            headers: { Authorization: `Bearer ${driveAccessToken}` }
+          });
+
+          if (!dlRes.ok) {
+            logDrive(`Error al descargar ${fileMeta.name}: HTTP ${dlRes.status}`);
+            continue;
+          }
+
+          const blob = await dlRes.blob();
+          const fileObj = new File([blob], fileMeta.name, { type: fileMeta.mimeType || blob.type });
+
+          await new Promise((resolve) => {
+            client.seed([fileObj], { name: fileMeta.name, announce: trackers }, async (torrent) => {
+              driveArchivosProcesados.add(fileMeta.id);
+
+              registrarSemillaEnPanel(torrent, {
+                titulo: fileMeta.name,
+                numArchivos: 1,
+                tamanoTotal: fileObj.size,
+                origen: 'Google Drive'
+              });
+
+              if (!hashesExistentes.has(torrent.infoHash)) {
+                await db.from('torrents').insert([{
+                  titulo: fileMeta.name,
+                  descripcion: `Compartido desde servidor Google Drive (${folderInfo.name})`,
+                  imagen: 'https://placehold.co/600x400/16222f/64b5f6?text=Google+Drive+P2P',
+                  info_hash: torrent.infoHash
+                }]);
+                hashesExistentes.add(torrent.infoHash);
+                logDrive(`Publicado y sirviendo en P2P: ${fileMeta.name}`);
+                cargarCatalogo();
+              } else {
+                logDrive(`Reconectado como semilla P2P: ${fileMeta.name}`);
+              }
+              resolve();
+            });
+          });
+        }
+      } catch (err) {
+        logDrive('Error en sincronización: ' + err.message);
+      }
+    }
 
     // --- CATÁLOGO Y DESCARGA (APARTADO DESCARGAR) ---
     async function guardarArchivosDeTorrent(torrent, detallesEl) {
@@ -623,7 +1026,7 @@
 
         const data = res.data;
         if (!data || data.length === 0) {
-          catalogoEl.innerHTML = '<p style="color:#aaa;">Aún no hay archivos publicados. Ve a la pestaña <strong>Subir Archivo / Carpeta</strong> para compartir el primero.</p>';
+          catalogoEl.innerHTML = '<p style="color:#aaa;">Aún no hay archivos publicados. Ve a la pestaña <strong>Subir / Servidor Nube</strong> para compartir el primero.</p>';
           return;
         }
 
@@ -649,13 +1052,18 @@
                   '<div class="barra-progreso" id="barra-' + item.id + '"></div>' +
                 '</div>' +
                 '<div class="detalles" id="detalles-' + item.id + '">Conectando con pares...</div>' +
+                '<div class="stats-cliente-extra" id="stats-extra-' + item.id + '">' +
+                  '<span>👥 Gente: <strong id="peers-' + item.id + '">0</strong></span>' +
+                  '<span>⬇️ Bajada: <strong id="down-' + item.id + '">0 KB/s</strong></span>' +
+                  '<span>⬆️ Aportando: <strong id="up-' + item.id + '">0 KB/s</strong></span>' +
+                '</div>' +
               '</div>' +
             '</div>';
 
           catalogoEl.appendChild(tarjeta);
 
           document.getElementById('btn-' + item.id).addEventListener('click', function() {
-            iniciarDescarga(item.info_hash, item.id);
+            iniciarDescarga(item.info_hash, item.id, item.titulo);
           });
 
           if (modoAdmin) {
@@ -669,7 +1077,7 @@
       }
     }
 
-    function iniciarDescarga(infoHash, id) {
+    function iniciarDescarga(infoHash, id, titulo) {
       if (!client) {
         alert('No se puede descargar.\n\nMotivo: ' + (causaBloqueo || 'El motor WebTorrent no está disponible.'));
         return;
@@ -679,19 +1087,21 @@
       const zona = document.getElementById('prog-zona-' + id);
       const barra = document.getElementById('barra-' + id);
       const detalles = document.getElementById('detalles-' + id);
+      const peersEl = document.getElementById('peers-' + id);
+      const downEl = document.getElementById('down-' + id);
+      const upEl = document.getElementById('up-' + id);
 
       const existente = client.get(infoHash);
       if (existente) {
         zona.style.display = 'block';
         if (existente.done || existente.progress === 1) {
           barra.style.width = '100%';
-          btn.textContent = '¡Descargado!';
-          detalles.textContent = '100% • Listo en tu navegador';
+          btn.textContent = '¡Descargado! (Guardar de nuevo)';
+          detalles.textContent = '100% • Compartiendo con la red';
           guardarArchivosDeTorrent(existente, detalles);
         } else {
           btn.disabled = true;
           btn.textContent = 'Descargando...';
-          detalles.textContent = Math.round(existente.progress * 100) + '% • En curso...';
         }
         return;
       }
@@ -704,21 +1114,43 @@
 
       client.add(magnet, function(torrent) {
         btn.textContent = 'Descargando...';
+        let archivoGuardado = false;
 
         const intervalo = setInterval(function() {
+          if (torrent.destroyed) {
+            clearInterval(intervalo);
+            return;
+          }
           const porcentaje = Math.round(torrent.progress * 100);
           barra.style.width = porcentaje + '%';
-          const velocidad = (torrent.downloadSpeed / 1024 / 1024).toFixed(2);
-          detalles.textContent = porcentaje + '% • ' + velocidad + ' MB/s • ' + torrent.numPeers + ' pares';
+
+          if (peersEl) peersEl.textContent = torrent.numPeers;
+          if (downEl) downEl.textContent = formatearVelocidad(torrent.downloadSpeed);
+          if (upEl) upEl.textContent = formatearVelocidad(torrent.uploadSpeed);
+
+          if (!torrent.done) {
+            detalles.textContent = `${porcentaje}% completado (${formatearTamano(torrent.downloaded)} / ${formatearTamano(torrent.length)})`;
+          } else {
+            detalles.textContent = `100% • Compartiendo con ${torrent.numPeers} persona(s)`;
+          }
         }, 500);
 
         torrent.on('done', function() {
-          clearInterval(intervalo);
+          if (archivoGuardado) return;
+          archivoGuardado = true;
           barra.style.width = '100%';
           btn.disabled = false;
           btn.textContent = '¡Descargado! (Guardar de nuevo)';
-          detalles.textContent = '100% • Guardando...';
+          detalles.textContent = '100% • Guardando archivo...';
           guardarArchivosDeTorrent(torrent, detalles);
+
+          // Registrar también en el panel global de semillas porque el cliente ahora actúa como semilla
+          registrarSemillaEnPanel(torrent, {
+            titulo: titulo || torrent.name,
+            numArchivos: torrent.files.length,
+            tamanoTotal: torrent.length,
+            origen: 'Cliente (Seeding)'
+          });
         });
       });
     }
