@@ -12,94 +12,541 @@
   <!-- Google Identity Services para conectar Google Drive -->
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <style>
-    :root{--bg:#E8ECF1;--ink:#17202C;--mut:#5B6675;--line:#C9D1DC;--acc:#2748C9;--ok:#1E7A4F;--bad:#B3261E}
+    :root{
+      --bg:#0B1120;
+      --surface:#131C31;
+      --surface-2:#1B2640;
+      --ink:#F1F5F9;
+      --mut:#94A3B8;
+      --line:#273552;
+      --acc:#4F7CFF;
+      --acc-hover:#3B66F5;
+      --cy:#22D3EE;
+      --ok:#10B981;
+      --bad:#F43F5E;
+      --shadow:0 12px 32px -8px rgba(0,0,0,.55);
+    }
     *{box-sizing:border-box}
-    body{font:16px/1.5 "Segoe UI","Helvetica Neue",Arial,sans-serif;background:var(--bg);color:var(--ink);margin:0;padding:28px 20px 60px}
-    h1,h2,h3{font-family:Georgia,"Times New Roman",serif;font-weight:700;letter-spacing:-.01em}
-    header,.tabs-nav,.vista-seccion,.panel-semillas,.banner-reanudar,.banner-diagnostico{max-width:900px;margin-left:auto;margin-right:auto}
-    header{position:relative;margin-bottom:26px;padding-right:100px}
-    header h1{font-size:2.2rem;margin:0}
-    header p{margin:2px 0 0;color:var(--mut)}
-    .btn-admin{position:absolute;top:6px;right:0;background:none;border:1px solid var(--line);color:var(--mut);padding:6px 12px;border-radius:4px;cursor:pointer;font:inherit;font-size:.85rem}
-    .btn-admin.activo{border-color:var(--ok);color:var(--ok)}
-    .tabs-nav{display:flex;gap:26px;border-bottom:2px solid var(--line);margin-bottom:24px}
-    .tab-btn{background:none;border:0;border-bottom:3px solid transparent;margin-bottom:-2px;padding:10px 2px;font:inherit;font-weight:600;color:var(--mut);cursor:pointer}
-    .tab-btn.activa{color:var(--ink);border-bottom-color:var(--acc)}
-    .vista-seccion{display:none}.vista-seccion.activa{display:block}
-    .banner-diagnostico{display:none;background:#FBE9E7;border-left:4px solid var(--bad);padding:14px 18px;border-radius:4px;margin-bottom:22px}
-    .banner-diagnostico h4{margin:0 0 6px;color:var(--bad)}.banner-diagnostico p,.banner-diagnostico ul{margin:0 0 6px;font-size:.9rem}
-    .banner-reanudar{display:none;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;background:#E3EAFB;border-left:4px solid var(--acc);padding:12px 18px;border-radius:4px;margin-bottom:22px}
-    .banner-reanudar p{margin:0;font-size:.92rem}.banner-reanudar-acciones{display:flex;gap:10px}
-    .btn-reanudar-ahora{background:var(--acc);color:#fff;border:0;padding:8px 14px;border-radius:4px;font-weight:600;cursor:pointer}
-    .btn-descartar-sesion{background:none;border:1px solid var(--acc);color:var(--acc);padding:8px 12px;border-radius:4px;cursor:pointer}
-    .panel-semillas{display:none;background:#fff;border:1px solid var(--line);border-top:4px solid var(--ok);padding:16px 18px;border-radius:6px;margin-bottom:22px}
-    .panel-semillas-header{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:8px}
-    .panel-semillas-header h4{margin:0;font-size:1rem}
-    .resumen-red-global{display:flex;gap:16px;font-size:.85rem;color:var(--mut)}.resumen-red-global strong{color:var(--ink)}
-    .item-semilla{border-top:1px solid var(--line);padding:10px 0;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
-    .semilla-info{flex:1;min-width:220px}.semilla-titulo{font-weight:600}.semilla-meta{font-size:.82rem;color:var(--mut)}
-    .badge-origen{font-size:.72rem;padding:1px 7px;border:1px solid var(--line);border-radius:3px;color:var(--mut);margin-left:6px;font-weight:400}
-    .semilla-metricas{display:flex;gap:8px;flex-wrap:wrap;font-size:.84rem;align-items:center}
-    .metrica-pill{background:#F0F3F7;padding:4px 9px;border-radius:3px}.metrica-pill strong{color:var(--ink)}
-    .btn-detener-seed{background:none;border:1px solid var(--bad);color:var(--bad);padding:4px 10px;border-radius:3px;cursor:pointer}
-    .btn-detener-seed:hover{background:var(--bad);color:#fff}
-    .contenedor-subida{display:flex;flex-direction:column;gap:22px;max-width:640px}
-    .formulario-caja{background:#fff;border:1px solid var(--line);padding:22px;border-radius:6px}
-    .formulario-caja h3{margin:0 0 12px;font-size:1.2rem}
-    input[type=text],input[type=url],input[type=password]{width:100%;padding:10px 12px;margin-bottom:12px;border:1px solid var(--line);border-radius:4px;background:#fff;color:var(--ink);font:inherit}
-    input:focus-visible,button:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
-    .zona-drop{border:2px dashed var(--line);border-radius:6px;padding:18px;text-align:center;margin-bottom:14px}
-    .zona-drop.dragover{border-color:var(--acc);background:#EEF2FD}
-    .botones-seleccion{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-bottom:10px}
-    .btn-secundario{background:#fff;border:1px solid var(--ink);color:var(--ink);padding:8px 14px;border-radius:4px;cursor:pointer;font:inherit;font-size:.88rem;font-weight:600}
-    .btn-secundario:hover{background:var(--ink);color:#fff}
-    .info-seleccion{font-size:.88rem;color:var(--mut);margin:0;word-break:break-word}.info-seleccion.cargado{color:var(--ok);font-weight:600}
-    .aviso-seed,.aviso-drive{border-left:4px solid var(--line);padding:8px 12px;font-size:.88rem;color:var(--mut);margin-bottom:14px}
-    .btn,.btn-drive{display:block;width:100%;background:var(--acc);color:#fff;border:0;border-radius:4px;padding:12px;font:inherit;font-weight:700;cursor:pointer}
-    .btn:hover:not(:disabled),.btn-drive:hover:not(:disabled){background:#1C37A0}
-    .btn:disabled,.btn-drive:disabled{background:#B9C0CC;cursor:not-allowed}
-    .btn-forzar{background:none;border:0;color:var(--mut);text-decoration:underline;cursor:pointer;font:inherit;font-size:.82rem;padding:6px 0}
-    .btn-borrar{background:none;border:1px solid var(--bad);color:var(--bad);border-radius:4px;padding:5px 10px;cursor:pointer;font:inherit;font-size:.82rem;margin-top:6px}
-    .estado-drive-box{display:none;margin-top:14px;border:1px solid var(--line);border-radius:4px;padding:12px;font-size:.85rem}.estado-drive-box.activo{display:block}
-    .drive-log{color:var(--mut);margin-top:6px;font-size:.8rem;max-height:110px;overflow-y:auto}
-    .cabecera-catalogo{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px}
+    body{
+      font:15px/1.6 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      background-color:var(--bg);
+      background-image:
+        radial-gradient(circle at 15% 0%, rgba(79,124,255,.12), transparent 38%),
+        radial-gradient(circle at 85% 10%, rgba(34,211,238,.08), transparent 35%);
+      background-attachment:fixed;
+      color:var(--ink);
+      margin:0;
+      padding:36px 20px 80px;
+    }
+    h1,h2,h3,h4{
+      font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+      font-weight:700;
+      letter-spacing:-.02em;
+      color:#FFFFFF;
+    }
+    header,.tabs-nav,.vista-seccion,.panel-semillas,.banner-reanudar,.banner-diagnostico{
+      max-width:920px;
+      margin-left:auto;
+      margin-right:auto;
+    }
+
+    /* Cabecera */
+    header{
+      position:relative;
+      margin-bottom:30px;
+      padding-right:110px;
+    }
+    header::before{
+      content:"";
+      display:block;
+      width:48px;
+      height:4px;
+      background:linear-gradient(90deg,var(--acc),var(--cy));
+      border-radius:99px;
+      margin-bottom:14px;
+    }
+    header h1{
+      font-size:2.4rem;
+      margin:0;
+      line-height:1.1;
+    }
+    header p{
+      margin:6px 0 0;
+      color:var(--mut);
+      font-size:1.02rem;
+    }
+    .btn-admin{
+      position:absolute;
+      top:16px;
+      right:0;
+      background:var(--surface);
+      border:1px solid var(--line);
+      color:var(--mut);
+      padding:8px 16px;
+      border-radius:10px;
+      cursor:pointer;
+      font:inherit;
+      font-size:.85rem;
+      font-weight:600;
+      transition:all .2s ease;
+    }
+    .btn-admin:hover{
+      border-color:var(--acc);
+      color:#fff;
+      background:var(--surface-2);
+    }
+    .btn-admin.activo{
+      border-color:rgba(16,185,129,.5);
+      color:var(--ok);
+      background:rgba(16,185,129,.12);
+    }
+
+    /* Pestañas */
+    .tabs-nav{
+      display:flex;
+      gap:8px;
+      border-bottom:1px solid var(--line);
+      margin-bottom:28px;
+    }
+    .tab-btn{
+      background:none;
+      border:0;
+      border-bottom:2px solid transparent;
+      margin-bottom:-1px;
+      padding:12px 20px;
+      font:inherit;
+      font-weight:600;
+      color:var(--mut);
+      cursor:pointer;
+      border-radius:8px 8px 0 0;
+      transition:all .2s ease;
+    }
+    .tab-btn:hover{
+      color:var(--ink);
+      background:rgba(255,255,255,.03);
+    }
+    .tab-btn.activa{
+      color:#fff;
+      border-bottom-color:var(--acc);
+      background:linear-gradient(180deg,transparent,rgba(79,124,255,.08));
+    }
+
+    .vista-seccion{display:none}
+    .vista-seccion.activa{display:block}
+
+    /* Banners de alerta y reanudación */
+    .banner-diagnostico{
+      display:none;
+      background:rgba(244,63,94,.12);
+      border:1px solid rgba(244,63,94,.35);
+      border-left:4px solid var(--bad);
+      padding:16px 20px;
+      border-radius:12px;
+      margin-bottom:24px;
+    }
+    .banner-diagnostico h4{margin:0 0 6px;color:#FDA4AF}
+    .banner-diagnostico p,.banner-diagnostico ul{margin:0 0 6px;font-size:.9rem;color:#FECDD3}
+
+    .banner-reanudar{
+      display:none;
+      justify-content:space-between;
+      align-items:center;
+      flex-wrap:wrap;
+      gap:16px;
+      background:rgba(79,124,255,.12);
+      border:1px solid rgba(79,124,255,.35);
+      border-left:4px solid var(--acc);
+      padding:16px 20px;
+      border-radius:12px;
+      margin-bottom:24px;
+    }
+    .banner-reanudar p{margin:0;font-size:.95rem;font-weight:500;color:#DBEAFE}
+    .banner-reanudar-acciones{display:flex;gap:10px}
+    .btn-reanudar-ahora{
+      background:var(--acc);
+      color:#fff;
+      border:0;
+      padding:9px 16px;
+      border-radius:8px;
+      font-weight:600;
+      cursor:pointer;
+      transition:background .2s;
+    }
+    .btn-reanudar-ahora:hover{background:var(--acc-hover)}
+    .btn-descartar-sesion{
+      background:var(--surface);
+      border:1px solid var(--line);
+      color:var(--mut);
+      padding:9px 14px;
+      border-radius:8px;
+      cursor:pointer;
+      font-weight:600;
+      transition:all .2s;
+    }
+    .btn-descartar-sesion:hover{color:#FDA4AF;border-color:var(--bad)}
+
+    /* Panel global de semillas activas */
+    .panel-semillas{
+      display:none;
+      background:var(--surface);
+      border:1px solid var(--line);
+      border-left:4px solid var(--ok);
+      padding:20px 24px;
+      border-radius:14px;
+      margin-bottom:28px;
+      box-shadow:var(--shadow);
+    }
+    .panel-semillas-header{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      flex-wrap:wrap;
+      gap:12px;
+      margin-bottom:14px;
+    }
+    .panel-semillas-header h4{margin:0;font-size:1.02rem;color:#6EE7B7}
+    .resumen-red-global{
+      display:flex;
+      gap:16px;
+      font-size:.85rem;
+      color:var(--mut);
+      font-variant-numeric:tabular-nums;
+    }
+    .resumen-red-global strong{color:#fff}
+    .item-semilla{
+      border-top:1px solid var(--line);
+      padding:12px 0;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      flex-wrap:wrap;
+      gap:12px;
+    }
+    .semilla-info{flex:1;min-width:220px}
+    .semilla-titulo{font-weight:600;color:#fff}
+    .semilla-meta{font-size:.82rem;color:var(--mut)}
+    .badge-origen{
+      font-size:.72rem;
+      padding:2px 9px;
+      border:1px solid var(--line);
+      border-radius:20px;
+      background:var(--surface-2);
+      color:var(--cy);
+      margin-left:6px;
+      font-weight:500;
+    }
+    .semilla-metricas{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+      font-size:.84rem;
+      align-items:center;
+      font-variant-numeric:tabular-nums;
+    }
+    .metrica-pill{
+      background:var(--surface-2);
+      border:1px solid var(--line);
+      padding:5px 11px;
+      border-radius:8px;
+      color:var(--mut);
+    }
+    .metrica-pill strong{color:#fff}
+    .btn-detener-seed{
+      background:rgba(244,63,94,.1);
+      border:1px solid rgba(244,63,94,.4);
+      color:#FDA4AF;
+      padding:5px 12px;
+      border-radius:8px;
+      cursor:pointer;
+      font-weight:600;
+      transition:all .2s;
+    }
+    .btn-detener-seed:hover{
+      background:var(--bad);
+      color:#fff;
+      border-color:var(--bad);
+    }
+
+    /* Formularios y Subida */
+    .contenedor-subida{
+      display:flex;
+      flex-direction:column;
+      gap:24px;
+      max-width:680px;
+      margin:0 auto;
+    }
+    .formulario-caja{
+      background:var(--surface);
+      border:1px solid var(--line);
+      padding:28px;
+      border-radius:14px;
+      box-shadow:var(--shadow);
+    }
+    .formulario-caja h3{margin:0 0 16px;font-size:1.22rem}
+    input[type=text],input[type=url],input[type=password]{
+      width:100%;
+      padding:12px 16px;
+      margin-bottom:14px;
+      border:1px solid var(--line);
+      border-radius:10px;
+      background:var(--bg);
+      color:var(--ink);
+      font:inherit;
+      transition:border-color .2s,box-shadow .2s;
+    }
+    input::placeholder{color:#64748B}
+    input[type=text]:focus,input[type=url]:focus,input[type=password]:focus{
+      border-color:var(--acc);
+      box-shadow:0 0 0 3px rgba(79,124,255,.2);
+    }
+    input:focus-visible,button:focus-visible{outline:none}
+
+    .zona-drop{
+      border:2px dashed var(--line);
+      border-radius:12px;
+      padding:24px;
+      text-align:center;
+      margin-bottom:16px;
+      background:rgba(11,17,32,.55);
+      transition:all .2s;
+    }
+    .zona-drop.dragover{
+      border-color:var(--cy);
+      background:rgba(34,211,238,.08);
+    }
+    .botones-seleccion{
+      display:flex;
+      gap:10px;
+      justify-content:center;
+      flex-wrap:wrap;
+      margin-bottom:12px;
+    }
+    .btn-secundario{
+      background:var(--surface-2);
+      border:1px solid var(--line);
+      color:var(--ink);
+      padding:9px 16px;
+      border-radius:9px;
+      cursor:pointer;
+      font:inherit;
+      font-size:.88rem;
+      font-weight:600;
+      transition:all .2s;
+    }
+    .btn-secundario:hover{
+      background:#263559;
+      border-color:var(--acc);
+      color:#fff;
+    }
+    .info-seleccion{
+      font-size:.9rem;
+      color:var(--mut);
+      margin:0;
+      word-break:break-word;
+    }
+    .info-seleccion.cargado{color:#34D399;font-weight:600}
+
+    .aviso-seed,.aviso-drive{
+      background:var(--surface-2);
+      border-left:3px solid var(--cy);
+      padding:12px 16px;
+      border-radius:0 10px 10px 0;
+      font-size:.88rem;
+      color:var(--mut);
+      margin-bottom:16px;
+    }
+
+    .btn,.btn-drive{
+      display:block;
+      width:100%;
+      background:linear-gradient(135deg,var(--acc),#365EE8);
+      color:#fff;
+      border:0;
+      border-radius:10px;
+      padding:13px 16px;
+      font:inherit;
+      font-weight:600;
+      cursor:pointer;
+      box-shadow:0 6px 18px rgba(79,124,255,.3);
+      transition:all .2s;
+    }
+    .btn:hover:not(:disabled),.btn-drive:hover:not(:disabled){
+      background:linear-gradient(135deg,#5E87FF,#4169F2);
+      box-shadow:0 8px 22px rgba(79,124,255,.45);
+      transform:translateY(-1px);
+    }
+    .btn:active:not(:disabled),.btn-drive:active:not(:disabled){transform:translateY(0)}
+    .btn:disabled,.btn-drive:disabled{
+      background:#1E293B;
+      color:#475569;
+      box-shadow:none;
+      cursor:not-allowed;
+    }
+
+    .btn-forzar{
+      background:none;
+      border:0;
+      color:var(--mut);
+      text-decoration:underline;
+      cursor:pointer;
+      font:inherit;
+      font-size:.82rem;
+      padding:6px 0;
+    }
+    .btn-forzar:hover{color:var(--ink)}
+
+    .btn-borrar{
+      background:rgba(244,63,94,.1);
+      border:1px solid rgba(244,63,94,.4);
+      color:#FDA4AF;
+      border-radius:8px;
+      padding:6px 12px;
+      cursor:pointer;
+      font:inherit;
+      font-size:.82rem;
+      font-weight:600;
+      margin-top:10px;
+      transition:all .2s;
+    }
+    .btn-borrar:hover{
+      background:var(--bad);
+      color:#fff;
+      border-color:var(--bad);
+    }
+
+    .estado-drive-box{
+      display:none;
+      margin-top:16px;
+      border:1px solid var(--line);
+      border-radius:10px;
+      padding:16px;
+      font-size:.88rem;
+      background:var(--bg);
+    }
+    .estado-drive-box.activo{display:block}
+    .drive-log{
+      color:var(--mut);
+      margin-top:10px;
+      font-size:.82rem;
+      max-height:120px;
+      overflow-y:auto;
+      background:var(--surface);
+      padding:10px 12px;
+      border:1px solid var(--line);
+      border-radius:8px;
+      font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;
+    }
+
+    /* Catálogo */
+    .cabecera-catalogo{
+      display:flex;
+      justify-content:space-between;
+      align-items:baseline;
+      margin-bottom:6px;
+    }
     .cabecera-catalogo h2{margin:0;font-size:1.45rem}
-    .btn-refrescar{background:none;border:0;color:var(--acc);cursor:pointer;font:inherit;font-size:.88rem;text-decoration:underline}
-    .ayuda{margin:0 0 18px;color:var(--mut)}
-    .grid-archivos{display:block}
-    .tarjeta{display:flex;gap:18px;background:#fff;border:1px solid var(--line);border-radius:6px;padding:14px;margin-bottom:12px}
-    .tarjeta img{width:132px;height:99px;object-fit:cover;border-radius:3px;flex:none;background:#DDE3EB}
-    .contenido{flex:1;min-width:0;display:flex;flex-direction:column;align-items:flex-start}
-    .contenido h3{margin:0 0 4px;font-size:1.1rem}.contenido p{margin:0 0 10px;color:var(--mut);font-size:.9rem}
+    .btn-refrescar{
+      background:none;
+      border:0;
+      color:var(--cy);
+      cursor:pointer;
+      font:inherit;
+      font-size:.9rem;
+      font-weight:600;
+      text-decoration:none;
+    }
+    .btn-refrescar:hover{text-decoration:underline}
+    .ayuda{margin:0 0 22px;color:var(--mut);font-size:.96rem}
+
+    .grid-archivos{display:block;color:var(--mut)}
+    .tarjeta{
+      display:flex;
+      gap:20px;
+      background:var(--surface);
+      border:1px solid var(--line);
+      border-radius:14px;
+      padding:18px;
+      margin-bottom:16px;
+      box-shadow:var(--shadow);
+      transition:border-color .2s ease,transform .2s ease;
+    }
+    .tarjeta:hover{
+      border-color:#3B517D;
+      transform:translateY(-2px);
+    }
+    .tarjeta img{
+      width:144px;
+      height:108px;
+      object-fit:cover;
+      border-radius:10px;
+      flex:none;
+      background:var(--surface-2);
+      border:1px solid var(--line);
+    }
+    .contenido{
+      flex:1;
+      min-width:0;
+      display:flex;
+      flex-direction:column;
+      align-items:flex-start;
+    }
+    .contenido h3{margin:0 0 6px;font-size:1.15rem;color:#fff}
+    .contenido p{margin:0 0 14px;color:var(--mut);font-size:.92rem}
     .contenido .btn{width:auto;padding:9px 24px}
-    .zona-progreso{display:none;width:100%;margin-top:10px}
-    .barra-fondo{background:#DDE3EB;border-radius:3px;height:8px;overflow:hidden;margin-bottom:6px}
-    .barra-progreso{background:var(--ok);height:100%;width:0%;transition:width .3s}
-    .detalles{font-size:.85rem}
-    .stats-cliente-extra{display:flex;gap:18px;margin-top:6px;font-size:.8rem;color:var(--mut)}.stats-cliente-extra strong{color:var(--ink)}
-    dialog{border:1px solid var(--line);border-radius:8px;padding:24px;max-width:340px;width:90%;background:#fff;color:var(--ink)}
-    dialog::backdrop{background:rgba(23,32,44,.55)}
-    @media(max-width:600px){.tarjeta{flex-direction:column}.tarjeta img{width:100%;height:150px}header{padding-right:0}.btn-admin{position:static;margin-top:10px}}
-  
-    /* Capa futurista: ficha técnica clara, esquinas alternas y barra segmentada */
-    :root{--bg:#E4EAF3;--ink:#0E1726;--mut:#52607A;--line:#B9C6DA;--acc:#2B4BFF;--cy:#12B5D0;--ok:#0F8F7C;--bad:#C42B3B}
-    body{background-color:var(--bg);background-image:radial-gradient(#B9C6DA 1px,transparent 1px);background-size:22px 22px;background-attachment:fixed;font-family:"Segoe UI Variable Text","Segoe UI","Helvetica Neue",Arial,sans-serif}
-    h1,h2,h3{font-family:"Bahnschrift","Segoe UI Variable Display","Segoe UI",Arial,sans-serif;font-weight:600;letter-spacing:-.02em}
-    header h1{font-size:2.9rem;line-height:1.05}
-    header::before{content:"";display:block;width:64px;height:6px;background:var(--acc);border-radius:0 6px 0 6px;margin-bottom:16px}
-    .tarjeta,.formulario-caja,.panel-semillas{background:rgba(255,255,255,.86);backdrop-filter:blur(6px);border:1px solid var(--line);border-radius:2px 22px 2px 22px}
-    .panel-semillas{border-top:1px solid var(--line);border-left:5px solid var(--cy)}
-    .tarjeta img{border-radius:2px 12px 2px 12px}
-    .btn,.btn-drive,.btn-secundario,.btn-admin,.btn-reanudar-ahora,.btn-descartar-sesion,.btn-borrar,.btn-detener-seed,input[type=text],input[type=url],input[type=password]{border-radius:2px 12px 2px 12px}
-    .btn,.btn-drive,.btn-reanudar-ahora{background:var(--acc);transition:box-shadow .15s,background .15s}
-    .btn:hover:not(:disabled),.btn-drive:hover:not(:disabled){background:#1F3BE0;box-shadow:0 0 0 4px rgba(43,75,255,.18)}
-    .tab-btn.activa{border-bottom-color:var(--acc);border-bottom-width:4px}
-    .barra-fondo{position:relative;height:10px;background:#D5DDEA;border-radius:0 6px 0 6px}
-    .barra-progreso{background:linear-gradient(90deg,var(--acc),var(--cy))}
-    .barra-fondo::after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent 0 6px,rgba(255,255,255,.95) 6px 8px)}
-    .stats-cliente-extra,.metrica-pill,.resumen-red-global,.detalles{font-variant-numeric:tabular-nums}
-    dialog{border-radius:2px 22px 2px 22px}
-    @media(prefers-reduced-motion:reduce){*{transition:none!important}}
+
+    /* Progreso de descarga */
+    .zona-progreso{display:none;width:100%;margin-top:14px}
+    .barra-fondo{
+      background:var(--bg);
+      border:1px solid var(--line);
+      border-radius:99px;
+      height:10px;
+      overflow:hidden;
+      margin-bottom:8px;
+    }
+    .barra-progreso{
+      background:linear-gradient(90deg,var(--acc),var(--cy));
+      height:100%;
+      width:0%;
+      transition:width .3s ease;
+    }
+    .detalles{font-size:.85rem;color:var(--ink);font-variant-numeric:tabular-nums}
+    .stats-cliente-extra{
+      display:flex;
+      gap:18px;
+      margin-top:6px;
+      font-size:.82rem;
+      color:var(--mut);
+      font-variant-numeric:tabular-nums;
+    }
+    .stats-cliente-extra strong{color:var(--cy)}
+
+    /* Modal Admin */
+    dialog{
+      border:1px solid var(--line);
+      border-radius:16px;
+      padding:28px;
+      max-width:360px;
+      width:90%;
+      background:var(--surface);
+      color:var(--ink);
+      box-shadow:0 25px 50px -12px rgba(0,0,0,.75);
+    }
+    dialog::backdrop{
+      background:rgba(6,10,20,.75);
+      backdrop-filter:blur(6px);
+    }
+    dialog h3{margin-top:0}
+
+    @media(max-width:600px){
+      .tarjeta{flex-direction:column}
+      .tarjeta img{width:100%;height:160px}
+      header{padding-right:0}
+      .btn-admin{position:static;margin-top:14px}
+    }
+    @media(prefers-reduced-motion:reduce){
+      *{transition:none!important;transform:none!important}
+    }
   </style>
 </head>
 <body>
@@ -198,8 +645,8 @@
 
         <div class="estado-drive-box" id="estado-drive-box">
           <div style="display: flex; justify-content: space-between; align-items: center;">
-            <strong id="drive-estado-titulo">Conectado a Google Drive</strong>
-            <button type="button" id="btn-desconectar-drive" style="background:none; border:none; color:#B3261E; cursor:pointer; font-size:0.8rem;">Desconectar</button>
+            <strong id="drive-estado-titulo" style="color: #6EE7B7;">Conectado a Google Drive</strong>
+            <button type="button" id="btn-desconectar-drive" style="background:none; border:none; color:#FDA4AF; cursor:pointer; font-size:0.82rem; font-weight:600;">Desconectar</button>
           </div>
           <div class="drive-log" id="drive-log">Esperando conexión...</div>
         </div>
@@ -210,8 +657,8 @@
 
   <dialog id="dlg-admin"><form id="form-admin"><h3>Administrador</h3>
     <input type="password" id="adm-pass" autocomplete="current-password" placeholder="Contraseña" required>
-    <p id="adm-msg" style="font-size:.85rem;color:#B3261E;margin:0 0 10px"></p>
-    <button class="btn">Entrar</button><button type="button" class="btn-secundario" id="adm-cancel" style="width:100%">Cancelar</button></form></dialog>
+    <p id="adm-msg" style="font-size:.85rem;color:#FDA4AF;margin:0 0 10px"></p>
+    <button class="btn">Entrar</button><button type="button" class="btn-secundario" id="adm-cancel" style="width:100%; margin-top: 8px;">Cancelar</button></form></dialog>
   <script src="app.js"></script>
 </body>
 </html>
