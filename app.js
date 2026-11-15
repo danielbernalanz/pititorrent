@@ -4,7 +4,8 @@
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const hashValido=h=>/^[a-fA-F0-9]{40}$/.test(h||'');
 const urlSegura=u=>{try{const x=new URL(u);return /^https?:$/.test(x.protocol)?x.href:''}catch{return ''}};
-const IMG_DEF='https://placehold.co/600x400/1e1e1e/00e676?text=PitiTorrent';
+const IMG_DEF='data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400"><rect width="600" height="400" fill="#DDE3EB"/><path d="M230 110h100l60 60v120H230z" fill="none" stroke="#9AA6B6" stroke-width="10"/></svg>');
+const imgCard=u=>{const s=urlSegura(u);return /placehold\.co.*text=(PitiTorrent|Drive)$/i.test(s)?'':s};
 const LS=(k,v)=>{try{if(v===undefined)return JSON.parse(localStorage.getItem(k));v===null?localStorage.removeItem(k):localStorage.setItem(k,JSON.stringify(v))}catch{return null}};
 // Persistencia: chunk store de WebTorrent sobre IndexedDB (sobrevive a F5, cierre y reinicio)
 const CH_DB=new Promise((ok,ko)=>{const r=indexedDB.open('pititorrent-chunks',1);r.onupgradeneeded=()=>r.result.createObjectStore('c');r.onsuccess=()=>ok(r.result);r.onerror=()=>ko(r.error)});
@@ -77,7 +78,7 @@ async function insertarTorrent(rows){
         
         const infoSeleccion = document.getElementById('info-seleccion');
         infoSeleccion.classList.add('cargado');
-        infoSeleccion.textContent = `🔗 Carpeta vinculada al PC: ${handleCarpetaLocal.name}`;
+        infoSeleccion.textContent = `Carpeta vinculada al PC: ${handleCarpetaLocal.name}`;
         document.getElementById('titulo').value = handleCarpetaLocal.name;
 
         let lista = [];
@@ -175,7 +176,7 @@ async function insertarTorrent(rows){
     const SESION_DIAS=30;
     let modoAdmin=(()=>{const t=LS('pititorrent_admin_ok');return !!t&&Date.now()-t<SESION_DIAS*864e5})();
     const btnAdmin=document.getElementById('btn-admin'),dlg=document.getElementById('dlg-admin');
-    function actualizarBotonAdmin(){btnAdmin.textContent=modoAdmin?'🔓 Modo Admin':'🔒 Admin';btnAdmin.classList.toggle('activo',modoAdmin)}
+    function actualizarBotonAdmin(){btnAdmin.textContent=modoAdmin?'Modo Admin':'Admin';btnAdmin.classList.toggle('activo',modoAdmin)}
     actualizarBotonAdmin();
     btnAdmin.addEventListener('click',()=>{
       if(modoAdmin){modoAdmin=false;LS('pititorrent_admin_ok',null);actualizarBotonAdmin();cargarCatalogo();return}
@@ -251,7 +252,7 @@ async function insertarTorrent(rows){
         const uploaded = t.uploaded || 0;
         totalPeers += peers;
         totalUploadSpeed += upSpeed;
-        const icono = item.numArchivos > 1 ? '📁' : '📄';
+        const icono = item.numArchivos > 1 ? '' : '';
         const claseOrigen = item.origen === 'Google Drive' ? 'badge-origen drive' : (item.origen.includes('Disco') ? 'badge-origen local-per' : 'badge-origen');
 
         html += `
@@ -262,13 +263,13 @@ async function insertarTorrent(rows){
                 <span class="${claseOrigen}">${esc(item.origen)}</span>
               </div>
               <div class="semilla-meta">
-                ${item.numArchivos} archivo(s) • ${formatearTamano(item.tamanoTotal)} • Hash: <code>${hash.slice(0, 10)}...</code>
+                ${item.numArchivos} archivo(s) - ${formatearTamano(item.tamanoTotal)}
               </div>
             </div>
             <div class="semilla-metricas">
-              <div class="metrica-pill">👥 Conectados: <strong>${peers}</strong></div>
-              <div class="metrica-pill">⬆️ Subida: <strong>${formatearVelocidad(upSpeed)}</strong></div>
-              <div class="metrica-pill">📦 Enviado: <strong>${formatearTamano(uploaded)}</strong></div>
+              <div class="metrica-pill">Conectados: <strong>${peers}</strong></div>
+              <div class="metrica-pill">Subida: <strong>${formatearVelocidad(upSpeed)}</strong></div>
+              <div class="metrica-pill">Enviado: <strong>${formatearTamano(uploaded)}</strong></div>
               <button type="button" class="btn-detener-seed" data-hash="${esc(hash)}">Detener</button>
             </div>
           </div>
@@ -292,7 +293,7 @@ async function insertarTorrent(rows){
       const permiso = await handleGuardado.queryPermission({ mode: 'read' });
       if (permiso !== 'granted') {
         const infoSel = document.getElementById('info-seleccion');
-        infoSel.textContent = `📁 Carpeta vinculada detectada ("${handleGuardado.name}"). Haz clic en "Vincular Carpeta PC" para reactivarla.`;
+        infoSel.textContent = `Carpeta vinculada detectada ("${handleGuardado.name}"). Haz clic en "Carpeta fija del PC" para reactivarla.`;
         return;
       }
 
@@ -346,7 +347,7 @@ async function insertarTorrent(rows){
       const totalBytes = archivosSeleccionados.reduce((acc, f) => acc + f.size, 0);
       infoSeleccion.classList.add('cargado');
       const nombreCarpeta = nombreSugerido || 'Selección';
-      infoSeleccion.textContent = `📄/📁 ${archivosSeleccionados.length} archivos (${formatearTamano(totalBytes)})`;
+      infoSeleccion.textContent = `/${archivosSeleccionados.length} archivos (${formatearTamano(totalBytes)})`;
       if (!inputTitulo.value) inputTitulo.value = nombreCarpeta;
     }
 
@@ -356,7 +357,7 @@ async function insertarTorrent(rows){
     document.getElementById('form-subir').addEventListener('submit', function(e) {
       e.preventDefault();
       if (!client || !db) return alert('Sistema no inicializado.');
-      if (!modoAdmin) return alert('Solo el administrador puede publicar. Pulsa 🔒 Admin.');
+      if (!modoAdmin) return alert('Solo el administrador puede publicar. Pulsa Admin.');
       if (!archivosSeleccionados || archivosSeleccionados.length === 0) {
         alert('Selecciona archivos o vincula una carpeta del PC.');
         return;
@@ -364,7 +365,7 @@ async function insertarTorrent(rows){
 
       const btn = document.getElementById('btn-publicar');
       btn.disabled = true;
-      btn.textContent = 'Generando Torrent P2P...';
+      btn.textContent = 'Preparando...';
 
       const nombreTorrent = inputTitulo.value.trim();
       const copia = [...archivosSeleccionados];
@@ -382,13 +383,13 @@ async function insertarTorrent(rows){
         }
 
         btn.disabled = false;
-        btn.textContent = 'Crear Torrent y Publicar';
+        btn.textContent = 'Publicar';
         registrarSemillaEnPanel(torrent, { titulo: nombreTorrent, numArchivos: copia.length, tamanoTotal: totalBytes, origen: handleCarpetaLocal ? 'Disco Local (Permanente)' : 'Local' });
 
         e.target.reset();
         archivosSeleccionados = [];
         infoSeleccion.classList.remove('cargado');
-        infoSeleccion.textContent = 'O arrastra archivos o vincula tu carpeta local permanente';
+        infoSeleccion.textContent = 'Elige lo que quieres compartir o arrástralo aquí';
         cargarCatalogo();
         cambiarPestana('descargar');
       });
@@ -468,7 +469,7 @@ async function insertarTorrent(rows){
       try {
         const metaRes = await fetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(driveFolderId)}?fields=id,name`, { headers: { Authorization: `Bearer ${driveAccessToken}` } });
         const folderInfo = await metaRes.json();
-        document.getElementById('drive-estado-titulo').textContent = `☁️ Drive: ${folderInfo.name}`;
+        document.getElementById('drive-estado-titulo').textContent = `Drive: ${folderInfo.name}`;
 
         const query = encodeURIComponent(`'${driveFolderId}' in parents and trashed = false and mimeType != 'application/vnd.google-apps.folder'`);
         const listRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${query}&fields=files(id,name,size,mimeType)`, { headers: { Authorization: `Bearer ${driveAccessToken}` } });
@@ -488,7 +489,7 @@ async function insertarTorrent(rows){
             driveArchivosProcesados.add(fMeta.id);
             registrarSemillaEnPanel(torrent, { titulo: fMeta.name, numArchivos: 1, tamanoTotal: fileObj.size, origen: 'Google Drive', reanudado: esReanudacion });
             if (!hashes.has(torrent.infoHash)) {
-              await insertarTorrent([{ titulo: fMeta.name, descripcion: 'Google Drive Server', imagen: 'https://placehold.co/600x400/16222f/64b5f6?text=Drive', info_hash: torrent.infoHash }]);
+              await insertarTorrent([{ titulo: fMeta.name, descripcion: 'Google Drive Server', imagen: '', info_hash: torrent.infoHash }]);
               hashes.add(torrent.infoHash);
               cargarCatalogo();
             }
@@ -521,7 +522,7 @@ async function insertarTorrent(rows){
         });
       }
 
-      if (detallesEl) detallesEl.textContent = '100% • ¡Todos los archivos guardados con éxito!';
+      if (detallesEl) detallesEl.textContent = '100% - ¡Todos los archivos guardados con éxito!';
     }
 
     // --- FUNCIÓN DE EMERGENCIA: FORZAR EXTRACCIÓN AL 100% ---
@@ -553,20 +554,20 @@ async function insertarTorrent(rows){
         const tarjeta = document.createElement('article');
         tarjeta.className = 'tarjeta';
         tarjeta.innerHTML = `
-          <img src="${esc(urlSegura(item.imagen) || IMG_DEF)}" referrerpolicy="no-referrer">
+          <img src="${esc(imgCard(item.imagen) || IMG_DEF)}" referrerpolicy="no-referrer">
           <div class="contenido">
             <h3>${esc(item.titulo)}</h3>
             <p>${esc(item.descripcion || 'Sin descripción')}</p>
-            <button class="btn" id="btn-${esc(item.id)}">Descargar P2P</button>
-            <button class="btn-forzar" id="forzar-${esc(item.id)}">⚡ Forzar Guardado (Si ya estaba bajado)</button>
-            ${modoAdmin ? `<button type="button" class="btn-borrar" id="del-${esc(item.id)}">🗑️ Eliminar</button>` : ''}
+            <button class="btn" id="btn-${esc(item.id)}">Descargar</button>
+            <button class="btn-forzar" id="forzar-${esc(item.id)}">Guardar otra vez (si ya lo descargaste)</button>
+            ${modoAdmin ? `<button type="button" class="btn-borrar" id="del-${esc(item.id)}">Eliminar</button>` : ''}
             <div class="zona-progreso" id="prog-zona-${esc(item.id)}">
               <div class="barra-fondo"><div class="barra-progreso" id="barra-${esc(item.id)}"></div></div>
               <div class="detalles" id="detalles-${esc(item.id)}">Conectando...</div>
               <div class="stats-cliente-extra">
-                <span>👥 Gente: <strong id="peers-${esc(item.id)}">0</strong></span>
-                <span>⬇️ Bajada: <strong id="down-${esc(item.id)}">0 KB/s</strong></span>
-                <span>⬆️ Aportando: <strong id="up-${esc(item.id)}">0 KB/s</strong></span>
+                <span>Gente: <strong id="peers-${esc(item.id)}">0</strong></span>
+                <span>Bajada: <strong id="down-${esc(item.id)}">0 KB/s</strong></span>
+                <span>Compartiendo: <strong id="up-${esc(item.id)}">0 KB/s</strong></span>
               </div>
             </div>
           </div>`;
@@ -607,8 +608,8 @@ async function insertarTorrent(rows){
       }
 
       btn.disabled = true;
-      btn.textContent = 'Conectando...';
-      detalles.textContent = 'Conectando con tu servidor P2P...';
+      btn.textContent = 'Conectando…';
+      detalles.textContent = 'Buscando el archivo...';
 
       if (navigator.storage && navigator.storage.persist) {
         navigator.storage.persist().catch(() => {});
@@ -629,7 +630,7 @@ async function insertarTorrent(rows){
           if (upEl) upEl.textContent = formatearVelocidad(torrent.uploadSpeed);
           
           if (porc === 100) {
-            detalles.textContent = '100% • Descarga completa';
+            detalles.textContent = '100% - Descarga completa';
           } else {
             detalles.textContent = `${porc}% completado (${formatearTamano(torrent.downloaded)} / ${formatearTamano(torrent.length)})`;
           }

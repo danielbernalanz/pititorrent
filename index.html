@@ -5,326 +5,115 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://accounts.google.com; style-src 'self' 'unsafe-inline' https://accounts.google.com; img-src 'self' data: https:; connect-src 'self' https: wss:; frame-src https://accounts.google.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'none'">
   <meta name="referrer" content="no-referrer">
-  <title>PitiTorrent - Compartir Archivos, Carpetas y Google Drive P2P</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📁</text></link>">
+  <title>PitiTorrent - Descarga y comparte archivos</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22></text></link>">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/webtorrent/1.9.7/webtorrent.min.js" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js" crossorigin="anonymous"></script>
   <!-- Google Identity Services para conectar Google Drive -->
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <style>
-    body { font-family: system-ui, -apple-system, sans-serif; background-color: #121212; color: #fff; margin: 0; padding: 30px 20px; }
-    header { text-align: center; margin-bottom: 24px; position: relative; max-width: 1100px; margin-left: auto; margin-right: auto; }
-    .btn-admin { position: absolute; top: 0; right: 0; background: #222; color: #aaa; border: 1px solid #333; padding: 8px 12px; border-radius: 8px; cursor: pointer; font-size: 0.85rem; }
-    .btn-admin:hover { background: #2c2c2c; color: #fff; }
-    .btn-admin.activo { background: #18241e; color: #00e676; border-color: #00e67666; }
-
-    /* Navegación por pestañas */
-    .tabs-nav {
-      display: flex;
-      justify-content: center;
-      gap: 12px;
-      max-width: 560px;
-      margin: 0 auto 30px auto;
-      background: #1a1a1a;
-      padding: 6px;
-      border-radius: 12px;
-      border: 1px solid #2c2c2c;
-    }
-    .tab-btn {
-      flex: 1;
-      background: transparent;
-      color: #aaa;
-      border: none;
-      padding: 12px 16px;
-      border-radius: 8px;
-      font-size: 0.95rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s ease;
-    }
-    .tab-btn:hover { color: #fff; background: #252525; }
-    .tab-btn.activa {
-      background: #00e676;
-      color: #121212;
-      box-shadow: 0 2px 10px rgba(0, 230, 118, 0.25);
-    }
-
-    .vista-seccion { display: none; }
-    .vista-seccion.activa { display: block; }
-
-    .banner-diagnostico { max-width: 650px; margin: 0 auto 25px auto; background: #2c1518; border: 1px solid #ff5252; border-left: 5px solid #ff5252; padding: 16px 20px; border-radius: 8px; display: none; }
-    .banner-diagnostico h4 { margin: 0 0 8px 0; color: #ff8a80; font-size: 1.05rem; }
-    .banner-diagnostico p { margin: 0 0 8px 0; font-size: 0.9rem; color: #ffcdd2; line-height: 1.4; }
-    .banner-diagnostico ul { margin: 8px 0 0 0; padding-left: 20px; font-size: 0.85rem; color: #ffebee; }
-
-    /* Banner de reanudación automática/manual si saliste y volviste siendo servidor */
-    .banner-reanudar {
-      max-width: 1100px;
-      margin: 0 auto 22px auto;
-      background: #162333;
-      border: 1px solid #42a5f566;
-      border-left: 5px solid #42a5f5;
-      padding: 14px 20px;
-      border-radius: 10px;
-      display: none;
-      justify-content: space-between;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 12px;
-    }
-    .banner-reanudar p { margin: 0; font-size: 0.92rem; color: #e3f2fd; }
-    .banner-reanudar-acciones { display: flex; gap: 10px; }
-    .btn-reanudar-ahora {
-      background: #42a5f5;
-      color: #0d1620;
-      border: none;
-      padding: 8px 14px;
-      border-radius: 7px;
-      font-weight: 700;
-      cursor: pointer;
-      font-size: 0.85rem;
-    }
-    .btn-reanudar-ahora:hover { background: #64b5f6; }
-    .btn-descartar-sesion {
-      background: transparent;
-      color: #90caf9;
-      border: 1px solid #42a5f555;
-      padding: 8px 12px;
-      border-radius: 7px;
-      cursor: pointer;
-      font-size: 0.82rem;
-    }
-    .btn-descartar-sesion:hover { background: #1e3147; }
-
-    /* Panel global de semillas activas con métricas en vivo */
-    .panel-semillas {
-      max-width: 1100px;
-      margin: 0 auto 25px auto;
-      background: #15221b;
-      border: 1px solid #00e67655;
-      padding: 18px 20px;
-      border-radius: 12px;
-      display: none;
-      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
-    }
-    .panel-semillas-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 10px;
-      margin-bottom: 12px;
-      padding-bottom: 10px;
-      border-bottom: 1px solid #00e67622;
-    }
-    .panel-semillas-header h4 { margin: 0; color: #00e676; font-size: 1rem; }
-    .resumen-red-global {
-      display: flex;
-      gap: 14px;
-      font-size: 0.85rem;
-      background: #0e1712;
-      padding: 6px 12px;
-      border-radius: 8px;
-      border: 1px solid #00e67633;
-    }
-    .resumen-red-global span strong { color: #00e676; }
-
-    .item-semilla {
-      background: #1b2b22;
-      border: 1px solid #284234;
-      border-radius: 8px;
-      padding: 12px 14px;
-      margin-bottom: 8px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      flex-wrap: wrap;
-      gap: 12px;
-    }
-    .item-semilla:last-child { margin-bottom: 0; }
-    .semilla-info { flex: 1; min-width: 220px; }
-    .semilla-titulo { font-weight: 600; color: #fff; font-size: 0.95rem; margin-bottom: 4px; }
-    .semilla-meta { font-size: 0.8rem; color: #9ab8a8; }
-    .badge-origen {
-      display: inline-block;
-      font-size: 0.72rem;
-      padding: 2px 7px;
-      border-radius: 4px;
-      background: #263238;
-      color: #80cbc4;
-      margin-left: 6px;
-      vertical-align: middle;
-    }
-    .badge-origen.drive { background: #1a283b; color: #64b5f6; border: 1px solid #64b5f644; }
-    .badge-origen.local-per { background: #1b2e21; color: #00e676; border: 1px solid #00e67644; }
-    .badge-origen.reanudado { background: #292315; color: #ffd54f; border: 1px solid #ffd54f44; }
-    .semilla-metricas {
-      display: flex;
-      gap: 14px;
-      align-items: center;
-      flex-wrap: wrap;
-      font-size: 0.85rem;
-    }
-    .metrica-pill {
-      background: #111b16;
-      padding: 5px 10px;
-      border-radius: 6px;
-      border: 1px solid #2b4537;
-      color: #d0e8db;
-    }
-    .metrica-pill strong { color: #00e676; }
-    .btn-detener-seed {
-      background: #3a1c1c;
-      color: #ff8a80;
-      border: 1px solid #ff525255;
-      padding: 5px 10px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 0.8rem;
-    }
-    .btn-detener-seed:hover { background: #ff5252; color: #fff; }
-
-    /* Formularios */
-    .contenedor-subida {
-      max-width: 600px;
-      margin: 0 auto 30px auto;
-      display: flex;
-      flex-direction: column;
-      gap: 24px;
-    }
-    .formulario-caja {
-      background: #1e1e1e;
-      padding: 24px;
-      border-radius: 12px;
-      box-shadow: 0 4px 15px rgba(0,0,0,0.4);
-      border: 1px solid #2a2a2a;
-    }
-    .formulario-caja h3 { margin-top: 0; display: flex; align-items: center; gap: 8px; }
-    input[type="text"], input[type="url"] { width: 100%; padding: 10px; margin-bottom: 12px; border-radius: 6px; border: 1px solid #333; background: #2a2a2a; color: #fff; box-sizing: border-box; }
-    
-    .zona-drop {
-      border: 2px dashed #444;
-      background: #252525;
-      border-radius: 10px;
-      padding: 18px;
-      text-align: center;
-      margin-bottom: 14px;
-      transition: all 0.2s ease;
-    }
-    .zona-drop.dragover { border-color: #00e676; background: #18241e; }
-    .botones-seleccion { display: flex; gap: 10px; justify-content: center; margin-bottom: 10px; flex-wrap: wrap; }
-    .btn-secundario {
-      background: #333;
-      color: #fff;
-      border: 1px solid #444;
-      padding: 8px 14px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 0.85rem;
-      font-weight: 600;
-      flex: 1;
-      min-width: 130px;
-    }
-    .btn-secundario:hover { background: #3e3e3e; border-color: #00e676; }
-    .info-seleccion { font-size: 0.85rem; color: #aaa; margin: 0; word-break: break-word; }
-    .info-seleccion.cargado { color: #00e676; font-weight: 500; }
-
-    .aviso-seed { background: #262216; border-left: 4px solid #ffb300; padding: 10px 14px; font-size: 0.85rem; color: #ffe082; margin-bottom: 15px; border-radius: 4px; line-height: 1.4; }
-    .aviso-drive { background: #16222f; border-left: 4px solid #42a5f5; padding: 10px 14px; font-size: 0.84rem; color: #bbdefb; margin-bottom: 15px; border-radius: 4px; line-height: 1.4; }
-    
-    .btn { background: #00e676; color: #121212; border: none; border-radius: 8px; padding: 12px; font-weight: bold; cursor: pointer; width: 100%; font-size: 0.95rem; margin-bottom: 6px; }
-    .btn:hover:not(:disabled) { background: #00c853; }
-    .btn:disabled { background: #333; color: #888; cursor: not-allowed; }
-
-    /* Botón de emergencia para forzar extracción de caché */
-    .btn-forzar { background: #ffb300; color: #121212; border: none; border-radius: 8px; padding: 10px; font-weight: bold; cursor: pointer; width: 100%; font-size: 0.85rem; }
-    .btn-forzar:hover { background: #ffa000; }
-    
-    .btn-drive { background: #4285f4; color: #fff; border: none; border-radius: 8px; padding: 12px; font-weight: bold; cursor: pointer; width: 100%; font-size: 0.95rem; }
-    .btn-drive:hover:not(:disabled) { background: #3367d6; }
-    .btn-drive:disabled { background: #333; color: #888; cursor: not-allowed; }
-
-    .estado-drive-box {
-      margin-top: 14px;
-      background: #161b22;
-      border: 1px solid #30363d;
-      border-radius: 8px;
-      padding: 12px;
-      font-size: 0.85rem;
-      display: none;
-    }
-    .estado-drive-box.activo { display: block; }
-    .drive-log { color: #8b949e; margin-top: 6px; font-size: 0.8rem; max-height: 110px; overflow-y: auto; }
-
-    .btn-borrar { background: #ff5252; color: #fff; border: none; border-radius: 8px; padding: 9px; font-weight: bold; cursor: pointer; width: 100%; font-size: 0.85rem; margin-top: 8px; }
-    .btn-borrar:hover { background: #ff1744; }
-    
-    .cabecera-catalogo {
-      max-width: 1100px;
-      margin: 0 auto 18px auto;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      border-bottom: 1px solid #262626;
-      padding-bottom: 10px;
-    }
-    .cabecera-catalogo h2 { margin: 0; font-size: 1.25rem; color: #eee; }
-    .btn-refrescar {
-      background: #222;
-      color: #ccc;
-      border: 1px solid #333;
-      padding: 6px 12px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 0.85rem;
-    }
-    .btn-refrescar:hover { background: #2c2c2c; color: #fff; }
-
-    .grid-archivos { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 24px; max-width: 1100px; margin: 0 auto; }
-    .tarjeta { background: #1e1e1e; border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 8px 20px rgba(0,0,0,0.4); border: 1px solid #292929; }
-    .tarjeta img { width: 100%; height: 170px; object-fit: cover; background: #2a2a2a; }
-    .contenido { padding: 20px; display: flex; flex-direction: column; flex-grow: 1; }
-    .contenido h3 { margin: 0 0 8px 0; }
-    .contenido p { color: #b0b0b0; font-size: 0.9rem; margin: 0 0 16px 0; flex-grow: 1; }
-    
-    .zona-progreso { display: none; margin-top: 14px; background: #161616; padding: 10px; border-radius: 8px; border: 1px solid #2c2c2c; }
-    .barra-fondo { background: #333; border-radius: 6px; height: 10px; overflow: hidden; margin-bottom: 8px; }
-    .barra-progreso { background: #00e676; height: 100%; width: 0%; transition: width 0.3s; }
-    .detalles { font-size: 0.82rem; color: #e0e0e0; text-align: center; font-weight: 500; }
-    .stats-cliente-extra {
-      display: flex;
-      justify-content: space-around;
-      margin-top: 8px;
-      padding-top: 8px;
-      border-top: 1px solid #262626;
-      font-size: 0.78rem;
-      color: #aaa;
-    }
-    .stats-cliente-extra span strong { color: #00e676; }
-    
-    @media (max-width: 650px) {
-      .btn-admin { position: static; margin-bottom: 15px; display: inline-block; }
-    }
-  dialog{background:#1e1e1e;color:#fff;border:1px solid #333;border-radius:12px;padding:24px;max-width:340px;width:90%}
-    dialog::backdrop{background:rgba(0,0,0,.7)}
-    input[type="email"],input[type="password"]{width:100%;padding:10px;margin-bottom:12px;border-radius:6px;border:1px solid #333;background:#2a2a2a;color:#fff;box-sizing:border-box}
+    :root{--bg:#E8ECF1;--ink:#17202C;--mut:#5B6675;--line:#C9D1DC;--acc:#2748C9;--ok:#1E7A4F;--bad:#B3261E}
+    *{box-sizing:border-box}
+    body{font:16px/1.5 "Segoe UI","Helvetica Neue",Arial,sans-serif;background:var(--bg);color:var(--ink);margin:0;padding:28px 20px 60px}
+    h1,h2,h3{font-family:Georgia,"Times New Roman",serif;font-weight:700;letter-spacing:-.01em}
+    header,.tabs-nav,.vista-seccion,.panel-semillas,.banner-reanudar,.banner-diagnostico{max-width:900px;margin-left:auto;margin-right:auto}
+    header{position:relative;margin-bottom:26px;padding-right:100px}
+    header h1{font-size:2.2rem;margin:0}
+    header p{margin:2px 0 0;color:var(--mut)}
+    .btn-admin{position:absolute;top:6px;right:0;background:none;border:1px solid var(--line);color:var(--mut);padding:6px 12px;border-radius:4px;cursor:pointer;font:inherit;font-size:.85rem}
+    .btn-admin.activo{border-color:var(--ok);color:var(--ok)}
+    .tabs-nav{display:flex;gap:26px;border-bottom:2px solid var(--line);margin-bottom:24px}
+    .tab-btn{background:none;border:0;border-bottom:3px solid transparent;margin-bottom:-2px;padding:10px 2px;font:inherit;font-weight:600;color:var(--mut);cursor:pointer}
+    .tab-btn.activa{color:var(--ink);border-bottom-color:var(--acc)}
+    .vista-seccion{display:none}.vista-seccion.activa{display:block}
+    .banner-diagnostico{display:none;background:#FBE9E7;border-left:4px solid var(--bad);padding:14px 18px;border-radius:4px;margin-bottom:22px}
+    .banner-diagnostico h4{margin:0 0 6px;color:var(--bad)}.banner-diagnostico p,.banner-diagnostico ul{margin:0 0 6px;font-size:.9rem}
+    .banner-reanudar{display:none;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;background:#E3EAFB;border-left:4px solid var(--acc);padding:12px 18px;border-radius:4px;margin-bottom:22px}
+    .banner-reanudar p{margin:0;font-size:.92rem}.banner-reanudar-acciones{display:flex;gap:10px}
+    .btn-reanudar-ahora{background:var(--acc);color:#fff;border:0;padding:8px 14px;border-radius:4px;font-weight:600;cursor:pointer}
+    .btn-descartar-sesion{background:none;border:1px solid var(--acc);color:var(--acc);padding:8px 12px;border-radius:4px;cursor:pointer}
+    .panel-semillas{display:none;background:#fff;border:1px solid var(--line);border-top:4px solid var(--ok);padding:16px 18px;border-radius:6px;margin-bottom:22px}
+    .panel-semillas-header{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:8px}
+    .panel-semillas-header h4{margin:0;font-size:1rem}
+    .resumen-red-global{display:flex;gap:16px;font-size:.85rem;color:var(--mut)}.resumen-red-global strong{color:var(--ink)}
+    .item-semilla{border-top:1px solid var(--line);padding:10px 0;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
+    .semilla-info{flex:1;min-width:220px}.semilla-titulo{font-weight:600}.semilla-meta{font-size:.82rem;color:var(--mut)}
+    .badge-origen{font-size:.72rem;padding:1px 7px;border:1px solid var(--line);border-radius:3px;color:var(--mut);margin-left:6px;font-weight:400}
+    .semilla-metricas{display:flex;gap:8px;flex-wrap:wrap;font-size:.84rem;align-items:center}
+    .metrica-pill{background:#F0F3F7;padding:4px 9px;border-radius:3px}.metrica-pill strong{color:var(--ink)}
+    .btn-detener-seed{background:none;border:1px solid var(--bad);color:var(--bad);padding:4px 10px;border-radius:3px;cursor:pointer}
+    .btn-detener-seed:hover{background:var(--bad);color:#fff}
+    .contenedor-subida{display:flex;flex-direction:column;gap:22px;max-width:640px}
+    .formulario-caja{background:#fff;border:1px solid var(--line);padding:22px;border-radius:6px}
+    .formulario-caja h3{margin:0 0 12px;font-size:1.2rem}
+    input[type=text],input[type=url],input[type=password]{width:100%;padding:10px 12px;margin-bottom:12px;border:1px solid var(--line);border-radius:4px;background:#fff;color:var(--ink);font:inherit}
+    input:focus-visible,button:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+    .zona-drop{border:2px dashed var(--line);border-radius:6px;padding:18px;text-align:center;margin-bottom:14px}
+    .zona-drop.dragover{border-color:var(--acc);background:#EEF2FD}
+    .botones-seleccion{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-bottom:10px}
+    .btn-secundario{background:#fff;border:1px solid var(--ink);color:var(--ink);padding:8px 14px;border-radius:4px;cursor:pointer;font:inherit;font-size:.88rem;font-weight:600}
+    .btn-secundario:hover{background:var(--ink);color:#fff}
+    .info-seleccion{font-size:.88rem;color:var(--mut);margin:0;word-break:break-word}.info-seleccion.cargado{color:var(--ok);font-weight:600}
+    .aviso-seed,.aviso-drive{border-left:4px solid var(--line);padding:8px 12px;font-size:.88rem;color:var(--mut);margin-bottom:14px}
+    .btn,.btn-drive{display:block;width:100%;background:var(--acc);color:#fff;border:0;border-radius:4px;padding:12px;font:inherit;font-weight:700;cursor:pointer}
+    .btn:hover:not(:disabled),.btn-drive:hover:not(:disabled){background:#1C37A0}
+    .btn:disabled,.btn-drive:disabled{background:#B9C0CC;cursor:not-allowed}
+    .btn-forzar{background:none;border:0;color:var(--mut);text-decoration:underline;cursor:pointer;font:inherit;font-size:.82rem;padding:6px 0}
+    .btn-borrar{background:none;border:1px solid var(--bad);color:var(--bad);border-radius:4px;padding:5px 10px;cursor:pointer;font:inherit;font-size:.82rem;margin-top:6px}
+    .estado-drive-box{display:none;margin-top:14px;border:1px solid var(--line);border-radius:4px;padding:12px;font-size:.85rem}.estado-drive-box.activo{display:block}
+    .drive-log{color:var(--mut);margin-top:6px;font-size:.8rem;max-height:110px;overflow-y:auto}
+    .cabecera-catalogo{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px}
+    .cabecera-catalogo h2{margin:0;font-size:1.45rem}
+    .btn-refrescar{background:none;border:0;color:var(--acc);cursor:pointer;font:inherit;font-size:.88rem;text-decoration:underline}
+    .ayuda{margin:0 0 18px;color:var(--mut)}
+    .grid-archivos{display:block}
+    .tarjeta{display:flex;gap:18px;background:#fff;border:1px solid var(--line);border-radius:6px;padding:14px;margin-bottom:12px}
+    .tarjeta img{width:132px;height:99px;object-fit:cover;border-radius:3px;flex:none;background:#DDE3EB}
+    .contenido{flex:1;min-width:0;display:flex;flex-direction:column;align-items:flex-start}
+    .contenido h3{margin:0 0 4px;font-size:1.1rem}.contenido p{margin:0 0 10px;color:var(--mut);font-size:.9rem}
+    .contenido .btn{width:auto;padding:9px 24px}
+    .zona-progreso{display:none;width:100%;margin-top:10px}
+    .barra-fondo{background:#DDE3EB;border-radius:3px;height:8px;overflow:hidden;margin-bottom:6px}
+    .barra-progreso{background:var(--ok);height:100%;width:0%;transition:width .3s}
+    .detalles{font-size:.85rem}
+    .stats-cliente-extra{display:flex;gap:18px;margin-top:6px;font-size:.8rem;color:var(--mut)}.stats-cliente-extra strong{color:var(--ink)}
+    dialog{border:1px solid var(--line);border-radius:8px;padding:24px;max-width:340px;width:90%;background:#fff;color:var(--ink)}
+    dialog::backdrop{background:rgba(23,32,44,.55)}
+    @media(max-width:600px){.tarjeta{flex-direction:column}.tarjeta img{width:100%;height:150px}header{padding-right:0}.btn-admin{position:static;margin-top:10px}}
+  
+    /* Capa futurista: ficha técnica clara, esquinas alternas y barra segmentada */
+    :root{--bg:#E4EAF3;--ink:#0E1726;--mut:#52607A;--line:#B9C6DA;--acc:#2B4BFF;--cy:#12B5D0;--ok:#0F8F7C;--bad:#C42B3B}
+    body{background-color:var(--bg);background-image:radial-gradient(#B9C6DA 1px,transparent 1px);background-size:22px 22px;background-attachment:fixed;font-family:"Segoe UI Variable Text","Segoe UI","Helvetica Neue",Arial,sans-serif}
+    h1,h2,h3{font-family:"Bahnschrift","Segoe UI Variable Display","Segoe UI",Arial,sans-serif;font-weight:600;letter-spacing:-.02em}
+    header h1{font-size:2.9rem;line-height:1.05}
+    header::before{content:"";display:block;width:64px;height:6px;background:var(--acc);border-radius:0 6px 0 6px;margin-bottom:16px}
+    .tarjeta,.formulario-caja,.panel-semillas{background:rgba(255,255,255,.86);backdrop-filter:blur(6px);border:1px solid var(--line);border-radius:2px 22px 2px 22px}
+    .panel-semillas{border-top:1px solid var(--line);border-left:5px solid var(--cy)}
+    .tarjeta img{border-radius:2px 12px 2px 12px}
+    .btn,.btn-drive,.btn-secundario,.btn-admin,.btn-reanudar-ahora,.btn-descartar-sesion,.btn-borrar,.btn-detener-seed,input[type=text],input[type=url],input[type=password]{border-radius:2px 12px 2px 12px}
+    .btn,.btn-drive,.btn-reanudar-ahora{background:var(--acc);transition:box-shadow .15s,background .15s}
+    .btn:hover:not(:disabled),.btn-drive:hover:not(:disabled){background:#1F3BE0;box-shadow:0 0 0 4px rgba(43,75,255,.18)}
+    .tab-btn.activa{border-bottom-color:var(--acc);border-bottom-width:4px}
+    .barra-fondo{position:relative;height:10px;background:#D5DDEA;border-radius:0 6px 0 6px}
+    .barra-progreso{background:linear-gradient(90deg,var(--acc),var(--cy))}
+    .barra-fondo::after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent 0 6px,rgba(255,255,255,.95) 6px 8px)}
+    .stats-cliente-extra,.metrica-pill,.resumen-red-global,.detalles{font-variant-numeric:tabular-nums}
+    dialog{border-radius:2px 22px 2px 22px}
+    @media(prefers-reduced-motion:reduce){*{transition:none!important}}
   </style>
 </head>
 <body>
 
   <header>
-    <button type="button" class="btn-admin" id="btn-admin">🔒 Admin</button>
-    <h1>PitiTorrent P2P</h1>
-    <p>Intercambio directo de archivos, carpetas y nube entre navegadores</p>
-    <div style="font-size: 0.75rem; color: #777; margin-top: 6px;">
-      Versión: <span style="color: #00e676; font-family: monospace;">v3.0.0</span> • Botón de Forzado Caché Activo
-    </div>
+    <button type="button" class="btn-admin" id="btn-admin">Admin</button>
+    <h1>PitiTorrent</h1>
+    <p>Archivos para descargar, gratis y sin registrarte.</p>
   </header>
 
   <!-- Selector de apartado -->
   <nav class="tabs-nav">
-    <button type="button" class="tab-btn activa" id="tab-descargar">📥 Descargar (Catálogo)</button>
-    <button type="button" class="tab-btn" id="tab-subir">📤 Subir / Servidor Nube</button>
+    <button type="button" class="tab-btn activa" id="tab-descargar">Descargar</button>
+    <button type="button" class="tab-btn" id="tab-subir">Compartir</button>
   </nav>
 
   <section class="banner-diagnostico" id="banner-error">
@@ -335,9 +124,9 @@
 
   <!-- Banner de reanudación automática/manual si saliste y volviste siendo servidor -->
   <section class="banner-reanudar" id="banner-reanudar">
-    <p id="texto-banner-reanudar">☁️ Tenías una carpeta de Google Drive actuando como servidor antes de salir.</p>
+    <p id="texto-banner-reanudar">Tenías una carpeta de Google Drive actuando como servidor antes de salir.</p>
     <div class="banner-reanudar-acciones">
-      <button type="button" class="btn-reanudar-ahora" id="btn-reanudar-drive-rapido">🔄 Reanudar Servidor Drive</button>
+      <button type="button" class="btn-reanudar-ahora" id="btn-reanudar-drive-rapido">Reanudar Servidor Drive</button>
       <button type="button" class="btn-descartar-sesion" id="btn-olvidar-drive">Olvidar sesión</button>
     </div>
   </section>
@@ -345,10 +134,10 @@
   <!-- Panel global de semillas activas con métricas en tiempo real -->
   <section class="panel-semillas" id="panel-semillas">
     <div class="panel-semillas-header">
-      <h4>🟢 Servidor Activo — Compartiendo desde tu navegador:</h4>
+      <h4>Estás compartiendo estos archivos (deja esta pestaña abierta)</h4>
       <div class="resumen-red-global">
-        <span>👥 Total conectados: <strong id="global-peers">0</strong></span>
-        <span>⬆️ Subida total: <strong id="global-upload-speed">0 KB/s</strong></span>
+        <span>Total conectados: <strong id="global-peers">0</strong></span>
+        <span>Subida total: <strong id="global-upload-speed">0 KB/s</strong></span>
       </div>
     </div>
     <div id="lista-semillas"></div>
@@ -357,10 +146,11 @@
   <!-- APARTADO 1: DESCARGAR / CATÁLOGO -->
   <section id="vista-descargar" class="vista-seccion activa">
     <div class="cabecera-catalogo">
-      <h2>Archivos y carpetas disponibles</h2>
-      <button type="button" class="btn-refrescar" id="btn-refrescar">🔄 Actualizar</button>
+      <h2>Archivos disponibles</h2>
+      <button type="button" class="btn-refrescar" id="btn-refrescar">Actualizar</button>
     </div>
-    <main class="grid-archivos" id="catalogo">Cargando catálogo...</main>
+    <p class="ayuda">Elige un archivo y pulsa Descargar. Se guarda en tu ordenador.</p>
+    <main class="grid-archivos" id="catalogo">Cargando…</main>
   </section>
 
   <!-- APARTADO 2: SUBIR / COMPARTIR Y GOOGLE DRIVE -->
@@ -369,49 +159,47 @@
       
       <!-- Opción A: Subida Local con Carpeta Persistente en Disco -->
       <div class="formulario-caja">
-        <h3>💻 Servidor de Carpeta Local Permanente</h3>
-        <div class="aviso-seed">
-          <strong>Enlace directo al disco:</strong> Usa <em>"Vincular Carpeta PC"</em>. El navegador guardará un acceso directo permanente a tu disco duro. Aunque limpies la caché o reinicies, podrás reactivar tu servidor con un solo clic sin volver a buscar archivos.
-        </div>
+        <h3>Compartir desde tu ordenador</h3>
+        <div class="aviso-seed">«Carpeta fija del PC» recuerda tu carpeta: la próxima vez que abras la web volverá a compartirse con un clic.</div>
         <form id="form-subir">
           <input type="file" id="input-archivos" multiple style="display: none;">
           <input type="file" id="input-carpeta" webkitdirectory directory multiple style="display: none;">
 
           <div class="zona-drop" id="zona-drop">
             <div class="botones-seleccion">
-              <button type="button" class="btn-secundario" id="btn-elegir-archivos">📄 Archivo(s)</button>
-              <button type="button" class="btn-secundario" id="btn-elegir-carpeta">📁 Carpeta</button>
-              <button type="button" class="btn-secundario" id="btn-vincular-disco" style="background: #1b3a2b; border-color: #00e676; color: #00e676;">🔗 Vincular Carpeta PC</button>
+              <button type="button" class="btn-secundario" id="btn-elegir-archivos">Archivos</button>
+              <button type="button" class="btn-secundario" id="btn-elegir-carpeta">Carpeta</button>
+              <button type="button" class="btn-secundario" id="btn-vincular-disco">Carpeta fija del PC</button>
             </div>
-            <p class="info-seleccion" id="info-seleccion">O arrastra archivos o vincula tu carpeta local permanente</p>
+            <p class="info-seleccion" id="info-seleccion">Elige lo que quieres compartir o arrástralo aquí</p>
           </div>
 
-          <input type="text" id="titulo" placeholder="Título del archivo o carpeta" required>
-          <input type="text" id="descripcion" placeholder="Breve descripción">
+          <input type="text" id="titulo" placeholder="Nombre (ej: Mi juego)" required>
+          <input type="text" id="descripcion" placeholder="Descripción corta (opcional)">
           <input type="url" id="imagen" placeholder="URL de imagen de portada (opcional)">
-          <button type="submit" class="btn" id="btn-publicar">Crear Torrent y Publicar</button>
+          <button type="submit" class="btn" id="btn-publicar">Publicar</button>
         </form>
       </div>
 
       <!-- Opción B: Servidor Carpeta Google Drive -->
       <div class="formulario-caja">
-        <h3>☁️ Conectar Carpeta de Google Drive (Modo Servidor)</h3>
+        <h3>Compartir desde Google Drive</h3>
         <div class="aviso-drive">
-          Conecta una carpeta de tu Google Drive para que esta pestaña actúe como servidor P2P automático en la nube.
+          Elige una carpeta de tu Google Drive y todo lo que haya dentro se compartirá solo. Deja esta pestaña abierta.
         </div>
         <form id="form-drive">
           <input type="text" id="drive-client-id" placeholder="Google OAuth Client ID" required>
           <input type="text" id="drive-folder-url" placeholder="URL o ID de la carpeta de Google Drive" required>
           <div style="display: flex; gap: 10px;">
-            <button type="submit" class="btn-drive" id="btn-conectar-drive">🔗 Conectar Google Drive</button>
-            <button type="button" class="btn-secundario" id="btn-sincronizar-ahora" style="display: none; flex: 0 0 auto;">🔄 Re-escanear</button>
+            <button type="submit" class="btn-drive" id="btn-conectar-drive">Conectar Google Drive</button>
+            <button type="button" class="btn-secundario" id="btn-sincronizar-ahora" style="display: none; flex: 0 0 auto;">Re-escanear</button>
           </div>
         </form>
 
         <div class="estado-drive-box" id="estado-drive-box">
           <div style="display: flex; justify-content: space-between; align-items: center;">
-            <strong id="drive-estado-titulo" style="color: #64b5f6;">Conectado a Google Drive</strong>
-            <button type="button" id="btn-desconectar-drive" style="background:none; border:none; color:#ff8a80; cursor:pointer; font-size:0.8rem;">Desconectar</button>
+            <strong id="drive-estado-titulo">Conectado a Google Drive</strong>
+            <button type="button" id="btn-desconectar-drive" style="background:none; border:none; color:#B3261E; cursor:pointer; font-size:0.8rem;">Desconectar</button>
           </div>
           <div class="drive-log" id="drive-log">Esperando conexión...</div>
         </div>
@@ -420,9 +208,9 @@
     </div>
   </section>
 
-  <dialog id="dlg-admin"><form id="form-admin"><h3>🔒 Administrador</h3>
+  <dialog id="dlg-admin"><form id="form-admin"><h3>Administrador</h3>
     <input type="password" id="adm-pass" autocomplete="current-password" placeholder="Contraseña" required>
-    <p id="adm-msg" style="font-size:.85rem;color:#ff8a80;margin:0 0 10px"></p>
+    <p id="adm-msg" style="font-size:.85rem;color:#B3261E;margin:0 0 10px"></p>
     <button class="btn">Entrar</button><button type="button" class="btn-secundario" id="adm-cancel" style="width:100%">Cancelar</button></form></dialog>
   <script src="app.js"></script>
 </body>
