@@ -25,7 +25,8 @@ const pend=()=>LS('pititorrent_pendientes')||[];
 const marcarPendiente=h=>{const p=pend();if(!p.includes(h))LS('pititorrent_pendientes',[...p,h])};
 const quitarPendiente=h=>LS('pititorrent_pendientes',pend().filter(x=>x!==h));
 async function insertarTorrent(rows){
-  if(!modoAdmin)return{error:{message:'Solo el administrador publica.'}};
+  await sesionLista;
+  if(!miUid)return{error:{message:'No se pudo iniciar sesión anónima.'}};
   const q=db.from('torrents').insert(rows),r=await q;if(r.error)alert('No se pudo publicar: '+r.error.message);return r}
     const catalogoEl = document.getElementById('catalogo');
 
@@ -167,35 +168,23 @@ async function insertarTorrent(rows){
       db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     }
 
-    // Contraseña admin: solo se guarda su hash PBKDF2-SHA256 (con sal), nunca el texto.
-    const ADMIN_SAL='578a2f0f27ac861a68d9b6033fea9848', ADMIN_HASH='055ce1cb619736c1cd1cc930d05bce89c6d9e97dac03d430ffd68ab06f2e070c', ADMIN_ITER=310000;
-    const aHex=b=>[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('');
-    const deHex=s=>Uint8Array.from(s.match(/../g).map(x=>parseInt(x,16)));
-    async function hashPass(p){const k=await crypto.subtle.importKey('raw',new TextEncoder().encode(p),'PBKDF2',false,['deriveBits']);
-      return aHex(await crypto.subtle.deriveBits({name:'PBKDF2',hash:'SHA-256',salt:deHex(ADMIN_SAL),iterations:ADMIN_ITER},k,256))}
-    const SESION_DIAS=30;
-    let modoAdmin=(()=>{const t=LS('pititorrent_admin_ok');return !!t&&Date.now()-t<SESION_DIAS*864e5})();
-    const btnAdmin=document.getElementById('btn-admin'),dlg=document.getElementById('dlg-admin');
-    function actualizarBotonAdmin(){btnAdmin.textContent=modoAdmin?'Modo Admin':'Admin';btnAdmin.classList.toggle('activo',modoAdmin)}
-    actualizarBotonAdmin();
-    btnAdmin.addEventListener('click',()=>{
-      if(modoAdmin){modoAdmin=false;LS('pititorrent_admin_ok',null);actualizarBotonAdmin();cargarCatalogo();return}
-      dlg.showModal()});
-    document.getElementById('adm-cancel').addEventListener('click',()=>dlg.close());
-    let fallos=0,bloqueoHasta=0;
-    document.getElementById('form-admin').addEventListener('submit',async e=>{
-      e.preventDefault();
-      const m=document.getElementById('adm-msg'),pw=document.getElementById('adm-pass');
-      if(Date.now()<bloqueoHasta){m.textContent='Demasiados intentos. Espera un minuto.';return}
-      m.textContent='Comprobando...';
-      const ok=(await hashPass(pw.value))===ADMIN_HASH;pw.value='';
-      if(!ok){if(++fallos>=5){fallos=0;bloqueoHasta=Date.now()+60000}m.textContent='Contraseña incorrecta.';return}
-      fallos=0;modoAdmin=true;LS('pititorrent_admin_ok',Date.now());m.textContent='';dlg.close();actualizarBotonAdmin();cargarCatalogo()});
+    // Identidad: sesión anónima de Supabase (una por navegador). RLS reserva borrar solo lo propio.
+    let miUid = null;
+    const sesionLista = (async () => {
+      if (!db) return;
+      try {
+        const { data } = await db.auth.getSession();
+        if (data && data.session) { miUid = data.session.user.id; return; }
+        const r = await db.auth.signInAnonymously();
+        miUid = (r.data && r.data.user && r.data.user.id) || null;
+      } catch (e) {}
+    })();
 
     async function eliminarTorrent(id,titulo,infoHash){
-      if(!db||!modoAdmin)return;
+      await sesionLista;
+      if(!db||!miUid)return;
       if(!confirm('¿Eliminar "'+titulo+'" del catálogo?'))return;
-      const{error}=await db.from('torrents').delete().eq('id',id);
+      const{error}=await db.from('torrents').delete().eq('id',id).eq('owner_id',miUid);
       if(error)return alert('No se pudo eliminar: '+error.message);
       if(client&&infoHash){const x=client.get(infoHash);if(x)x.destroy();semillasActivas.delete(infoHash);renderizarPanelSemillas()}
       purgar(infoHash);quitarPendiente(infoHash);cargarCatalogo()}
@@ -370,7 +359,6 @@ async function insertarTorrent(rows){
       e.preventDefault();
       if (!db) return alert('Sistema no inicializado.');
       try { await obtenerCliente(); } catch { return alert('WebTorrent no disponible.'); }
-      if (!modoAdmin) return alert('Solo el administrador puede publicar. Pulsa Admin.');
       if (!archivosSeleccionados || archivosSeleccionados.length === 0) {
         alert('Selecciona archivos o vincula una carpeta del PC.');
         return;
@@ -578,7 +566,7 @@ async function insertarTorrent(rows){
             <p>${esc(item.descripcion || 'Sin descripción')}</p>
             <button class="btn" id="btn-${esc(item.id)}">Descargar</button>
             <button class="btn-forzar" id="forzar-${esc(item.id)}">Guardar otra vez (si ya lo descargaste)</button>
-            ${modoAdmin ? `<button type="button" class="btn-borrar" id="del-${esc(item.id)}">Eliminar</button>` : ''}
+            ${esMio(item) ? `<button type="button" class="btn-borrar" id="del-${esc(item.id)}">Eliminar</button>` : ''}
             <div class="zona-progreso" id="prog-zona-${esc(item.id)}">
               <div class="barra-fondo"><div class="barra-progreso" id="barra-${esc(item.id)}"></div></div>
               <div class="detalles" id="detalles-${esc(item.id)}">Conectando...</div>
@@ -594,7 +582,7 @@ async function insertarTorrent(rows){
 
         document.getElementById(`btn-${esc(item.id)}`).addEventListener('click', () => iniciarDescarga(item.info_hash, item.id, item.titulo));
         document.getElementById(`forzar-${esc(item.id)}`).addEventListener('click', () => forzarDescarga100(item.info_hash, item.id));
-        if (modoAdmin) {
+        if (esMio(item)) {
           document.getElementById(`del-${esc(item.id)}`).addEventListener('click', () => eliminarTorrent(item.id, item.titulo, item.info_hash));
         }
       });
@@ -680,7 +668,9 @@ async function insertarTorrent(rows){
     }
 
     let reanudado = false;
+    const esMio = item => !!miUid && item.owner_id === miUid;
     async function cargarCatalogo() {
+      await sesionLista;
       if (!db) return;
       let datos = null;
       try {
