@@ -7,8 +7,10 @@
   <meta name="referrer" content="no-referrer">
   <title>PitiTorrent - Descarga y comparte archivos</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22></text></link>">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/webtorrent/1.9.7/webtorrent.min.js" crossorigin="anonymous"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js" crossorigin="anonymous"></script>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+  <link rel="preconnect" href="https://nkcfnbygggrekgnbbjrx.supabase.co" crossorigin>
+  <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js" crossorigin="anonymous"></script>
   <!-- Google Identity Services para conectar Google Drive -->
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <style>
@@ -659,6 +661,6 @@
     <input type="password" id="adm-pass" autocomplete="current-password" placeholder="Contraseña" required>
     <p id="adm-msg" style="font-size:.85rem;color:#FDA4AF;margin:0 0 10px"></p>
     <button class="btn">Entrar</button><button type="button" class="btn-secundario" id="adm-cancel" style="width:100%; margin-top: 8px;">Cancelar</button></form></dialog>
-  <script src="app.js"></script>
+  <script defer src="app.js"></script>
 </body>
 </html>

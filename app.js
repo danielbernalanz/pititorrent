@@ -200,12 +200,23 @@ async function insertarTorrent(rows){
       if(client&&infoHash){const x=client.get(infoHash);if(x)x.destroy();semillasActivas.delete(infoHash);renderizarPanelSemillas()}
       purgar(infoHash);quitarPendiente(infoHash);cargarCatalogo()}
 
-    let client = null;
-    try {
-      if (typeof WebTorrent !== 'undefined') {
-        client = new WebTorrent();
+    // WebTorrent (~900 KB) se carga bajo demanda, sin bloquear la primera pintura
+    let client = null, clientePromesa = null;
+    function obtenerCliente() {
+      if (client) return Promise.resolve(client);
+      if (!clientePromesa) {
+        clientePromesa = new Promise((ok, ko) => {
+          if (typeof WebTorrent !== 'undefined') return ok();
+          const s = document.createElement('script');
+          s.src = 'https://cdnjs.cloudflare.com/ajax/libs/webtorrent/1.9.7/webtorrent.min.js';
+          s.crossOrigin = 'anonymous';
+          s.onload = ok;
+          s.onerror = () => ko(new Error('No se pudo cargar WebTorrent'));
+          document.head.appendChild(s);
+        }).then(() => (client = new WebTorrent())).catch(e => { clientePromesa = null; throw e; });
       }
-    } catch (e) {}
+      return clientePromesa;
+    }
 
     // Trackers estables y limpios
     const trackers = [
@@ -286,9 +297,10 @@ async function insertarTorrent(rows){
 
     // --- REANUDACIÓN AUTOMÁTICA DESDE DISCO LOCAL ---
     async function comprobarReanudacionDiscoLocal() {
-      if (!client || !db) return;
+      if (!db) return;
       const handleGuardado = await recuperarHandleDeIDB();
       if (!handleGuardado) return;
+      await obtenerCliente();
 
       const permiso = await handleGuardado.queryPermission({ mode: 'read' });
       if (permiso !== 'granted') {
@@ -354,9 +366,10 @@ async function insertarTorrent(rows){
     inputArchivos.addEventListener('change', (e) => establecerSeleccion(e.target.files, e.target.files[0]?.name));
     inputCarpeta.addEventListener('change', (e) => establecerSeleccion(e.target.files, e.target.files[0]?.webkitRelativePath?.split('/')[0] || 'Carpeta'));
 
-    document.getElementById('form-subir').addEventListener('submit', function(e) {
+    document.getElementById('form-subir').addEventListener('submit', async function(e) {
       e.preventDefault();
-      if (!client || !db) return alert('Sistema no inicializado.');
+      if (!db) return alert('Sistema no inicializado.');
+      try { await obtenerCliente(); } catch { return alert('WebTorrent no disponible.'); }
       if (!modoAdmin) return alert('Solo el administrador puede publicar. Pulsa Admin.');
       if (!archivosSeleccionados || archivosSeleccionados.length === 0) {
         alert('Selecciona archivos o vincula una carpeta del PC.');
@@ -465,6 +478,7 @@ async function insertarTorrent(rows){
     });
 
     async function sincronizarCarpetaDrive(esReanudacion) {
+      await obtenerCliente();
       if (!driveAccessToken || !driveFolderId) return;
       try {
         const metaRes = await fetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(driveFolderId)}?fields=id,name`, { headers: { Authorization: `Bearer ${driveAccessToken}` } });
@@ -527,6 +541,10 @@ async function insertarTorrent(rows){
 
     // --- FUNCIÓN DE EMERGENCIA: FORZAR EXTRACCIÓN AL 100% ---
     function forzarDescarga100(infoHash, id) {
+      obtenerCliente().then(() => forzarDescarga100Ya(infoHash, id), () => alert('WebTorrent no disponible.'));
+    }
+
+    function forzarDescarga100Ya(infoHash, id) {
       const detalles = document.getElementById(`detalles-${id}`);
       const zona = document.getElementById(`prog-zona-${id}`);
       zona.style.display = 'block';
@@ -583,7 +601,12 @@ async function insertarTorrent(rows){
     }
 
     function iniciarDescarga(infoHash, id, titulo) {
-      if (!client) return alert('WebTorrent no disponible.');
+      const bPrev = document.getElementById(`btn-${id}`);
+      if (bPrev) { bPrev.disabled = true; bPrev.textContent = 'Cargando…'; }
+      obtenerCliente().then(() => iniciarDescargaYa(infoHash, id, titulo), () => alert('WebTorrent no disponible.'));
+    }
+
+    function iniciarDescargaYa(infoHash, id, titulo) {
       const btn = document.getElementById(`btn-${id}`);
       const zona = document.getElementById(`prog-zona-${id}`);
       const barra = document.getElementById(`barra-${id}`);
@@ -677,4 +700,6 @@ async function insertarTorrent(rows){
     if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
     cargarCatalogo();
     comprobarReanudacionDiscoLocal();
+    // Precarga en segundo plano: cuando el usuario pulse descargar, ya estará listo
+    window.addEventListener('load', () => setTimeout(() => obtenerCliente().catch(() => {}), 1500));
   
